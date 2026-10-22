@@ -1,0 +1,4 @@
+.DS_Store
+# Built app and downloads: they contain Steam and game sign-ins, and Apple's D3DMetal.
+*.app/
+*.tar.xz
