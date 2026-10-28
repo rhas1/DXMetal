@@ -16,14 +16,14 @@ fi
 if pgrep -f 'steam\.exe' >/dev/null; then
   echo "Asking Steam to exit..."
   wine_exec 'C:\Program Files (x86)\Steam\steam.exe' -shutdown >/dev/null 2>&1 &
-  for i in {1..60}; do pgrep -x wineserver >/dev/null || break; sleep 1; done
+  wait_for_wine 60 || true
 fi
 
 if pgrep -x wineserver >/dev/null; then
   echo "Force-quitting what's left..."
   [[ -x "$LAUNCHER" ]] && "$LAUNCHER" WSS-wineserverkill >/dev/null 2>&1 || true
   pkill -x wineserver || true
-  for i in {1..10}; do pgrep -x wineserver >/dev/null || break; sleep 1; done
+  wait_for_wine 10 || true
 fi
 
 pgrep -x wineserver >/dev/null && { echo "Wine is still running."; exit 1; }

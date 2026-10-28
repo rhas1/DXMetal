@@ -44,10 +44,14 @@ if [[ ! -f "$STEAM_DIR/steam.exe" ]]; then
   curl -fL --progress-bar -o "$DRIVE_C/SteamSetup.exe" "$STEAM_SETUP_URL"
   set_opt "Program Name and Path" string "/SteamSetup.exe"
   set_opt "Program Flags" string "/S"
+  # The launcher only waits for a program when no Wine is running, and Wine lingers for a few
+  # seconds after creating the Windows environment; starting too early cuts the installer off.
+  wait_for_wine 60 || { echo "Wine is still running; run ${0:h}/close-wine.sh and try again."; exit 1; }
   "$LAUNCHER"
-  "$LAUNCHER" WSS-wineserverkill >/dev/null 2>&1 || true
+  wait_for_wine 120 || "$LAUNCHER" WSS-wineserverkill >/dev/null 2>&1 || true
   rm -f "$DRIVE_C/SteamSetup.exe"
 fi
+[[ -f "$STEAM_DIR/steam.exe" ]] || { echo "Steam didn't install. Run setup again; if that fails, see Troubleshooting in the README."; exit 1; }
 set_opt "Program Name and Path" string "/Program Files (x86)/Steam/steam.exe"
 set_opt "Program Flags" string ""
 
