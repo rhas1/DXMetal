@@ -28,9 +28,10 @@ if [[ ! -x "$LAUNCHER" ]]; then
   mkdir -p "${APP:h}"
   mv "$tmp"/Template-*.app "$APP"
   mv "$tmp/wswine.bundle" "$APP/Contents/SharedSupport/wine"
-  # Defaults: D3DMetal, no FPS overlay, quiet Wine logging. Wine starts in scaled resolution.
+  # Defaults: D3DMetal, no FPS overlay, no MetalFX, quiet Wine logging. Wine starts in scaled resolution.
   set_opt D3DMETAL integer 1
   set_opt METAL_HUD integer 0
+  set_metalfx 0
   set_opt WINEDEBUG string "-all"
 fi
 

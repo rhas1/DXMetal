@@ -31,7 +31,7 @@ Nothing else is installed on the Mac apart from Rosetta 2. You don't need Homebr
    - installs Rosetta 2 if it's missing. This accepts Apple's Rosetta license on your behalf, and it may ask for your password.
    - downloads the Sikarugir wrapper and Wine 11 (about 250 MB), checks that both files are exactly the expected versions, and builds `~/Games/DXMetal.app`
    - installs Windows Steam into it, using Valve's own installer
-   - applies the default settings (scaled resolution, D3DMetal, FPS overlay off), marks the app as a game for macOS Game Mode, and excludes it from Time Machine backups
+   - applies the default settings (scaled resolution, D3DMetal, FPS overlay off, MetalFX upscaling off), marks the app as a game for macOS Game Mode, and excludes it from Time Machine backups
 3. Start Steam and sign in with your Steam account:
    ```
    zsh scripts/run-steam.sh
@@ -47,8 +47,8 @@ Run these from the `dxmetal` folder. You can also `cd scripts` first and leave o
 
 | To... | Run |
 |---|---|
-| Start Steam with your current settings | `./scripts/run-steam.sh` (or double-click `~/Games/DXMetal.app`) |
-| Start Steam with different settings | `./scripts/run-steam.sh RETINA DXMT HUD`, e.g. `./scripts/run-steam.sh 0 1 1` (see below) |
+| Start Steam with your current settings | `./scripts/run-steam.sh` (or double-click `~/Games/DXMetal.app`, which applies every setting except MetalFX) |
+| Start Steam with different settings | `./scripts/run-steam.sh RETINA DXMT HUD METALFX`, e.g. `./scripts/run-steam.sh 0 1 0 1` (see below) |
 | See the settings, and which translator a running game uses | `./scripts/status.sh` |
 | Quit Steam and Wine | Steam menu → **Exit**, or `./scripts/close-wine.sh` |
 
@@ -56,32 +56,38 @@ Run these from the `dxmetal` folder. You can also `cd scripts` first and leave o
 
 ## Launch arguments
 
-`run-steam.sh` takes either no arguments, which keeps the current settings, or exactly three, each `0` or `1`:
+`run-steam.sh` takes up to four arguments, each `0` or `1`. Any you leave off keep their current setting, so `./scripts/run-steam.sh` on its own changes nothing.
 
 ```
-./scripts/run-steam.sh RETINA DXMT HUD
+./scripts/run-steam.sh RETINA DXMT HUD METALFX
 ```
 
 | Argument | `0` | `1` |
 |---|---|---|
-| `RETINA` (first) | **Scaled:** games see your screen at its scaled ("looks like") size. Faster. | **Retina:** games can use the full Retina resolution, about 4× the pixels. Sharper, but much heavier. |
-| `DXMT` (second) | **D3DMetal**, Apple's translator, for DirectX 11 and 12 games | **DXMT**, an open-source translator for DirectX 10 and 11 games that's sometimes faster |
-| `HUD` (third) | No overlay | **Metal performance overlay** in games, showing FPS and frame timing |
+| `RETINA` (1st) | **Scaled:** games see your screen at its scaled ("looks like") size. Faster. | **Retina:** games can use the full Retina resolution, about 4× the pixels. Sharper, but much heavier. |
+| `DXMT` (2nd) | **D3DMetal**, Apple's translator, for DirectX 11 and 12 games | **DXMT**, an open-source translator for DirectX 10 and 11 games that's sometimes faster |
+| `HUD` (3rd) | No overlay | **Metal performance overlay** in games, showing FPS and frame timing |
+| `METALFX` (4th) | No upscaling | **MetalFX upscaling:** Apple's MetalFX upscales each frame to twice its resolution, so games at scaled resolution look close to Retina-sharp at about the same speed. DXMT at scaled resolution only. Experimental. |
 
 Some examples:
 
 | Command | Result |
 |---|---|
-| `./scripts/run-steam.sh 0 0 0` | Scaled resolution, D3DMetal, no overlay (the defaults) |
-| `./scripts/run-steam.sh 0 1 0` | Scaled resolution, DXMT, no overlay |
-| `./scripts/run-steam.sh 0 1 1` | Scaled resolution, DXMT, with the FPS overlay |
-| `./scripts/run-steam.sh 1 0 0` | Retina resolution, D3DMetal, no overlay |
+| `./scripts/run-steam.sh 0 0 0 0` | Scaled resolution, D3DMetal, no overlay, no upscaling (the defaults) |
+| `./scripts/run-steam.sh 0 1 0 1` | Scaled resolution, DXMT, with MetalFX upscaling |
+| `./scripts/run-steam.sh 0 1 1` | Scaled resolution, DXMT, with the FPS overlay. MetalFX stays as it was. |
+| `./scripts/run-steam.sh 1 0` | Retina resolution, D3DMetal. The rest stays as it was. |
 | `./scripts/run-steam.sh` | Keep the current settings |
 
 The settings are remembered, so you only need arguments when you want to change something. They apply to every game you launch from Steam.
 
-- **Settings can only change while Steam is closed.** If Steam is running with different settings, the script stops and tells you. To switch in one step: `./scripts/close-wine.sh && ./scripts/run-steam.sh 0 1 0`
+- **Settings can only change while Steam is closed.** If Steam is running with different settings, the script stops and tells you. To switch in one step: `./scripts/close-wine.sh && ./scripts/run-steam.sh 0 1 0 1`
 - After changing the resolution mode, pick the resolution again in each game's display settings.
+- **About MetalFX upscaling:**
+  - It only switches on with DXMT at scaled resolution. If it's on while you use D3DMetal or Retina, it stays inactive, and `status.sh` says so.
+  - It also upscales Steam's own window, because Steam's interface runs on DXMT.
+  - It's applied when Steam is started with `run-steam.sh`, not when you double-click the app.
+  - It's experimental: DXMT describes itself as not yet ready for general users.
 - Each translator builds its own cache of a game's converted shaders (the small programs that draw effects). After switching, expect stutter the first time through each area. To compare the two fairly, play the same section twice on each with the overlay on, and compare the FPS on the second pass.
 
 ## Compatibility
@@ -110,6 +116,7 @@ Tested another game? Add a row with the translator you used, and anything worth 
 - **Cap the frame rate** at your screen's refresh rate: 60 on most MacBooks. Anything higher only produces extra heat.
 - **VSync off** makes the controls feel more responsive. Turn it on if you see tearing, a horizontal split line across the picture when the camera turns fast.
 - **Keep resolution scale at 100%.** Games already run below Retina resolution by default, so only lower it as a last resort.
+- **For a sharper picture without the cost of Retina,** try MetalFX upscaling with DXMT: `./scripts/run-steam.sh 0 1 0 1`. If a game has its own FSR or DLSS option, you can also try that.
 - **Start with High quality.** If the FPS dips, lower shadows and effects first.
 - **On a MacBook Air:** it has no fan, so if the FPS starts swinging after 20–30 minutes, cap the frame rate at 30. A steady 30 feels better than a jumpy 40–55. Keep the Mac plugged in, with Low Power Mode off.
 
@@ -136,7 +143,7 @@ dxmetal/
 | File | What it does |
 |---|---|
 | `scripts/setup.sh` | Installs everything (see [Setup](#setup-once-per-mac)). It's safe to run again: it skips finished steps, picks up where a failed run stopped, and keeps your settings. Steam must be closed. |
-| `scripts/run-steam.sh` | Starts Steam, optionally changing the resolution mode, translator and overlay first (see [Launch arguments](#launch-arguments)). |
+| `scripts/run-steam.sh` | Starts Steam, optionally changing the resolution mode, translator, overlay and MetalFX upscaling first (see [Launch arguments](#launch-arguments)). |
 | `scripts/status.sh` | Shows the current settings, whether Steam/Wine is running, and which translator a running game is actually using. |
 | `scripts/close-wine.sh` | Quits everything running in Wine, including other Wine apps such as CrossOver. It asks before closing a running game, because unsaved progress is lost. It then asks Steam to exit properly, so Steam saves its state, and force-quits anything still running after 60 seconds. |
 | `scripts/uninstall.sh` | Deletes `~/Games/DXMetal.app`, **including Steam, all installed games and saved sign-ins**, after asking you to confirm. Steam must be closed. Run `setup.sh` afterwards to install again. |
@@ -149,14 +156,15 @@ dxmetal/
 
 | Problem | Fix |
 |---|---|
-| A game won't start, or shows a black screen | Try the other translator, for example `./scripts/close-wine.sh && ./scripts/run-steam.sh 0 1 0`, and check [Compatibility](#compatibility). |
+| A game won't start, or shows a black screen | Try the other translator: `./scripts/close-wine.sh && ./scripts/run-steam.sh 0 1` for DXMT, or `0 0` for D3DMetal. Also check [Compatibility](#compatibility). |
 | "Steam is running with ..." when changing settings | Run `./scripts/close-wine.sh`, then `./scripts/run-steam.sh` with the new arguments. |
 | `setup.sh` or `uninstall.sh` says "Quit Steam" | Run `./scripts/close-wine.sh` first. |
 | Setup fails partway | Run `zsh scripts/setup.sh` again: it picks up where it stopped. If it keeps failing, run `./scripts/uninstall.sh` and then `zsh scripts/setup.sh`, and save the Terminal output to troubleshoot with. |
 | "Checksum mismatch" during setup | A download isn't the expected file. Setup stops without using it. Try again later, or check for a newer version of these scripts. |
 | Stutter the first time through an area | Normal: the translator is converting the game's shaders for the first time. It's smooth on the next visit. |
 | Stutter comes back after it was smooth | macOS deletes caches when disk space runs low. Keep 20 GB or more free. |
-| Glitches or crashes with DXMT | Switch back to D3DMetal: `./scripts/close-wine.sh && ./scripts/run-steam.sh 0 0 0` |
+| Glitches or crashes with DXMT | Switch back to D3DMetal: `./scripts/close-wine.sh && ./scripts/run-steam.sh 0 0 0 0` |
+| The picture, or Steam's window, looks wrong with MetalFX upscaling | Turn upscaling off: `./scripts/close-wine.sh && ./scripts/run-steam.sh 0 1 0 0` |
 | Every controller press happens twice | In Steam, right-click the game → **Properties** → **Controller** → **Disable Steam Input**. |
 | `steamerrorreporter` appears briefly after launching a game | Harmless. It's a known warning from Steam's networking code under Wine, and the game keeps running. |
 

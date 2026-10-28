@@ -64,10 +64,19 @@ set_dxmt() { set_opt D3DMETAL integer $(( 1 - $1 )); }
 get_hud() { plutil -extract METAL_HUD raw "$PLIST"; }
 set_hud() { set_opt METAL_HUD integer "$1"; }
 
+# MetalFX spatial upscaling of each frame to 2x: 1 = on, 0 = off. Stored in our own Info.plist key
+# and passed to Steam by run-steam.sh. DXMT only, and meant for scaled resolution.
+get_metalfx() { plutil -extract DXMETAL_METALFX raw "$PLIST" 2>/dev/null || echo 0; }
+set_metalfx() { set_opt DXMETAL_METALFX integer "$1"; }
+metalfx_active() { (( $(get_metalfx) && $(get_dxmt) && ! $(get_retina) )); }
+
 describe_settings() {
+  local metalfx=off
+  (( $(get_metalfx) )) && { metalfx_active && metalfx=on || metalfx="on, but inactive (needs DXMT and scaled resolution)"; }
   echo "$( (( $(get_retina) )) && echo Retina || echo scaled) resolution," \
     "$( (( $(get_dxmt) )) && echo DXMT || echo D3DMetal)," \
-    "HUD $( (( $(get_hud) )) && echo on || echo off)"
+    "HUD $( (( $(get_hud) )) && echo on || echo off)," \
+    "MetalFX $metalfx"
 }
 
 # Lists running games (Wine processes drawing with DirectX, Vulkan or OpenGL) as "name on renderer".
