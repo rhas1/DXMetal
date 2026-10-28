@@ -22,6 +22,13 @@ STEAM_DIR="$DRIVE_C/Program Files (x86)/Steam"
 # Sets a wrapper setting, e.g. set_opt "Program Flags" string "-foo"
 set_opt() { plutil -replace "$1" -"$2" "$3" "$PLIST"; }
 
+# Waits up to $1 seconds for all Wine processes to exit; fails if Wine is still running.
+wait_for_wine() {
+  local i
+  for i in {1..$1}; do pgrep -x wineserver >/dev/null || return 0; sleep 1; done
+  ! pgrep -x wineserver >/dev/null
+}
+
 # Downloads $1 to $2 and stops unless its SHA-256 matches $3.
 fetch() {
   curl -fL --progress-bar -o "$2" "$1"
