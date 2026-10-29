@@ -55,6 +55,7 @@ fi
 [[ -f "$STEAM_DIR/steam.exe" ]] || { echo "Steam didn't install. Run setup again; if that fails, see Troubleshooting in the README."; exit 1; }
 set_opt "Program Name and Path" string "/Program Files (x86)/Steam/steam.exe"
 set_opt "Program Flags" string ""
+apply_metalfx
 
 # Mark the app as a game for macOS Game Mode, and keep Wine and games out of Time Machine.
 set_opt LSApplicationCategoryType string "public.app-category.games"

@@ -20,6 +20,8 @@ Nothing else is installed on the Mac apart from Rosetta 2. You don't need Homebr
 
 ## Setup (once per Mac)
 
+Prefer not to use Terminal? Open the [DXMetal Settings app](#dxmetal-settings-app), click **Install**, then **Start Steam**, and continue from step 4.
+
 1. Copy this folder to the Mac (AirDrop, USB stick or `git clone`).
 2. Open **Terminal**, go into the folder and run the setup:
    ```
@@ -47,8 +49,9 @@ Run these from the `dxmetal` folder. You can also `cd scripts` first and leave o
 
 | To... | Run |
 |---|---|
-| Start Steam with your current settings | `./scripts/run-steam.sh` (or double-click `~/Games/DXMetal.app`, which applies every setting except MetalFX) |
+| Start Steam with your current settings | `./scripts/run-steam.sh`, or double-click `~/Games/DXMetal.app` |
 | Start Steam with different settings | `./scripts/run-steam.sh RETINA DXMT HUD METALFX`, e.g. `./scripts/run-steam.sh 0 1 0 1` (see below) |
+| Do any of these without Terminal | Open the [DXMetal Settings app](#dxmetal-settings-app) |
 | See the settings, and which translator a running game uses | `./scripts/status.sh` |
 | Quit Steam and Wine | Steam menu → **Exit**, or `./scripts/close-wine.sh` |
 
@@ -86,9 +89,29 @@ The settings are remembered, so you only need arguments when you want to change 
 - **About MetalFX upscaling:**
   - It only switches on with DXMT at scaled resolution. If it's on while you use D3DMetal or Retina, it stays inactive, and `status.sh` says so.
   - It also upscales Steam's own window, because Steam's interface runs on DXMT.
-  - It's applied when Steam is started with `run-steam.sh`, not when you double-click the app.
+  - With the overlay on, DXMT adds a "MetalFX: Spatial" line to it while upscaling is active.
   - It's experimental: DXMT describes itself as not yet ready for general users.
 - Each translator builds its own cache of a game's converted shaders (the small programs that draw effects). After switching, expect stutter the first time through each area. To compare the two fairly, play the same section twice on each with the overlay on, and compare the FPS on the second pass.
+
+## DXMetal Settings app
+
+A small Mac app that does the same as the scripts, with switches instead of arguments. It shows whether Steam is running and which game is running, and has:
+
+- **Install**, while DXMetal isn't installed yet. It runs `setup.sh`, installing Rosetta 2 first if it's missing, which asks for your password.
+- A switch for each of the four settings, saved as soon as you change them. Steam only reads them when it starts, so they're locked while it runs.
+- **Start Steam**, or **Quit Steam** while it's running. If a game is running, it asks first, because unsaved progress would be lost.
+
+Settings are saved in `DXMetal.app` itself, so double-clicking `~/Games/DXMetal.app` uses them too.
+
+**Building it** needs Apple's free Command Line Tools (`xcode-select --install`), not the full Xcode:
+
+```
+zsh app/build.sh
+```
+
+This creates `app/build/DXMetal Settings.app`; move it to your Applications folder. The scripts are bundled inside it, so build it again after changing them.
+
+**Giving it to another Mac:** send `app/build/DXMetal Settings.zip`, and double-click it there to unzip the app. The app runs on any Apple Silicon Mac with macOS 14 or newer, without the Command Line Tools, and holds no accounts or personal details: just the program, its icon and the scripts. It isn't signed with a paid Apple developer account, so if it arrives by AirDrop or download, macOS blocks it the first time. Try to open it, then go to System Settings → Privacy & Security and click **Open Anyway**.
 
 ## Compatibility
 
@@ -131,13 +154,17 @@ dxmetal/
 ├── README.md
 ├── LICENSE
 ├── .gitignore
-└── scripts/
-    ├── setup.sh
-    ├── run-steam.sh
-    ├── status.sh
-    ├── close-wine.sh
-    ├── uninstall.sh
-    └── config.sh
+├── scripts/
+│   ├── setup.sh
+│   ├── run-steam.sh
+│   ├── status.sh
+│   ├── close-wine.sh
+│   ├── uninstall.sh
+│   └── config.sh
+└── app/
+    ├── DXMetalSettings.swift
+    ├── build.sh
+    └── AppIcon.icns
 ```
 
 | File | What it does |
@@ -148,6 +175,9 @@ dxmetal/
 | `scripts/close-wine.sh` | Quits everything running in Wine, including other Wine apps such as CrossOver. It asks before closing a running game, because unsaved progress is lost. It then asks Steam to exit properly, so Steam saves its state, and force-quits anything still running after 60 seconds. |
 | `scripts/uninstall.sh` | Deletes `~/Games/DXMetal.app`, **including Steam, all installed games and saved sign-ins**, after asking you to confirm. Steam must be closed. Run `setup.sh` afterwards to install again. |
 | `scripts/config.sh` | Shared settings and helpers used by the other scripts: where the app lives, the pinned download links and their checksums, and how settings are read and changed. You don't run it directly. |
+| `app/DXMetalSettings.swift` | The source code of the [DXMetal Settings app](#dxmetal-settings-app): one window that runs the scripts above. |
+| `app/build.sh` | Builds the app into `app/build/`, plus a zip of it for sending to another Mac. |
+| `app/AppIcon.icns` | The app's icon. |
 | `.gitignore` | Keeps built apps and downloaded files out of git. |
 | `LICENSE` | The MIT license for these scripts. |
 | `README.md` | This file. |
@@ -165,6 +195,7 @@ dxmetal/
 | Stutter comes back after it was smooth | macOS deletes caches when disk space runs low. Keep 20 GB or more free. |
 | Glitches or crashes with DXMT | Switch back to D3DMetal: `./scripts/close-wine.sh && ./scripts/run-steam.sh 0 0 0 0` |
 | The picture, or Steam's window, looks wrong with MetalFX upscaling | Turn upscaling off: `./scripts/close-wine.sh && ./scripts/run-steam.sh 0 1 0 0` |
+| macOS says DXMetal Settings "can't be opened" or can't be checked for malware | Expected for a copy that arrived by AirDrop or download. Go to System Settings → Privacy & Security and click **Open Anyway** (once). |
 | Every controller press happens twice | In Steam, right-click the game → **Properties** → **Controller** → **Disable Steam Input**. |
 | `steamerrorreporter` appears briefly after launching a game | Harmless. It's a known warning from Steam's networking code under Wine, and the game keeps running. |
 
@@ -178,7 +209,7 @@ Steam and your games update themselves. Wine and the wrapper stay at the version
 
 ## Privacy
 
-- **Never share or upload your `DXMetal.app`.** It contains your Steam and game sign-ins, cookies and saves. To set up another Mac, copy this folder and run `setup.sh` there, rather than copying the app.
+- **Never share or upload your `DXMetal.app`.** It contains your Steam and game sign-ins, cookies and saves. To set up another Mac, copy this folder (or the DXMetal Settings app) to it and install there, rather than copying `DXMetal.app`.
 - These scripts contain no accounts, keys or personal details. They only download from GitHub (the wrapper and Wine, checked against pinned checksums) and Valve (the Steam installer).
 
 ## How it works
@@ -202,7 +233,7 @@ Neither Steam nor your games are modified. Rosetta 2 translates their Intel code
 
 - `~/Games/DXMetal.app` holds everything:
   - `Contents/SharedSupport/prefix` is the Windows side: Wine's registry, and the C: drive with Steam and your games. `Contents/drive_c` is a shortcut to that C: drive.
-  - `Contents/Info.plist` stores the wrapper's settings.
+  - `Contents/Info.plist` stores the wrapper's settings. To apply MetalFX, DXMetal keeps one line in its "CLI Custom Commands" setting; anything else you add there is kept.
 - The shader caches are in the Mac's cache folder: run `open $(getconf DARWIN_USER_CACHE_DIR)` and look in `d3dm/` (D3DMetal) and `dxmt/` (DXMT), with one folder per game.
 - **Keeping the app on an external drive:** before running setup, edit the `APP=` line near the top of `scripts/config.sh`, replacing `$HOME/Games/DXMetal.app` with something like `/Volumes/GameSSD/DXMetal.app`. The drive must be formatted as APFS.
 
