@@ -103,15 +103,17 @@ A small Mac app that does the same as the scripts, with switches instead of argu
 
 Settings are saved in `DXMetal.app` itself, so double-clicking `~/Games/DXMetal.app` uses them too.
 
-**Building it** needs Apple's free Command Line Tools (`xcode-select --install`), not the full Xcode:
+**Getting it:** download `DXMetal-Settings-<version>.dmg` from the [latest release](https://github.com/rhas1/DXMetal/releases/latest), open it, and drag **DXMetal Settings** onto **Applications**. It runs on any Apple Silicon Mac with macOS 14 or newer, and holds no accounts or personal details: just the program, its icon and the scripts. To check the download, run `shasum -a 256` on it and compare the result with the SHA-256 in the release notes.
+
+**The first time you open a downloaded copy,** macOS blocks it, because it isn't signed with a paid Apple developer account. Try to open it, then go to System Settings → Privacy & Security and click **Open Anyway**.
+
+**Building it yourself** needs Apple's free Command Line Tools (`xcode-select --install`), not the full Xcode:
 
 ```
 zsh app/build.sh
 ```
 
-This creates `app/build/DXMetal Settings.app`; move it to your Applications folder. The scripts are bundled inside it, so build it again after changing them.
-
-**Giving it to another Mac:** send `app/build/DXMetal Settings.zip`, and double-click it there to unzip the app. The app runs on any Apple Silicon Mac with macOS 14 or newer, without the Command Line Tools, and holds no accounts or personal details: just the program, its icon and the scripts. It isn't signed with a paid Apple developer account, so if it arrives by AirDrop or download, macOS blocks it the first time. Try to open it, then go to System Settings → Privacy & Security and click **Open Anyway**.
+This creates `app/build/DXMetal Settings.app`, and a disk image of it for sending to another Mac. The scripts are bundled inside the app, so build it again after changing them.
 
 ## Compatibility
 
@@ -152,6 +154,7 @@ Online play works as it does on Windows: friends, invites and matchmaking go thr
 ```
 dxmetal/
 ├── README.md
+├── CHANGELOG.md
 ├── LICENSE
 ├── .gitignore
 ├── scripts/
@@ -176,9 +179,10 @@ dxmetal/
 | `scripts/uninstall.sh` | Deletes `~/Games/DXMetal.app`, **including Steam, all installed games and saved sign-ins**, after asking you to confirm. Steam must be closed. Run `setup.sh` afterwards to install again. |
 | `scripts/config.sh` | Shared settings and helpers used by the other scripts: where the app lives, the pinned download links and their checksums, and how settings are read and changed. You don't run it directly. |
 | `app/DXMetalSettings.swift` | The source code of the [DXMetal Settings app](#dxmetal-settings-app): one window that runs the scripts above. |
-| `app/build.sh` | Builds the app into `app/build/`, plus a zip of it for sending to another Mac. |
+| `app/build.sh` | Builds the app and a disk image of it into `app/build/`. |
 | `app/AppIcon.icns` | The app's icon. |
 | `.gitignore` | Keeps built apps and downloaded files out of git. |
+| `CHANGELOG.md` | What changed in each release. |
 | `LICENSE` | The MIT license for these scripts. |
 | `README.md` | This file. |
 

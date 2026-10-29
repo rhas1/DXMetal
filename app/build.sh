@@ -1,10 +1,12 @@
 #!/bin/zsh
-# Builds "DXMetal Settings.app" into app/build. Building needs Apple's Command Line Tools
-# (xcode-select --install); the finished app runs on any Apple Silicon Mac without them.
+# Builds "DXMetal Settings.app" and a disk image of it into app/build. Building needs Apple's Command
+# Line Tools (xcode-select --install); the finished app runs on any Apple Silicon Mac without them.
 set -euo pipefail
+version=1.0.0  # released as tag v1.0.0
 here=${0:A:h}
 out="$here/build"
 app="$out/DXMetal Settings.app"
+dmg="$out/DXMetal-Settings-$version.dmg"
 
 command -v swiftc >/dev/null || { echo "This needs Apple's Command Line Tools: run xcode-select --install"; exit 1; }
 rm -rf "$out"
@@ -14,7 +16,7 @@ swiftc -O -swift-version 5 -parse-as-library -target arm64-apple-macos14.0 \
 # The app runs the same scripts as the command line.
 cp "$here"/../scripts/{config,setup,run-steam,close-wine}.sh "$app/Contents/Resources/scripts/"
 cp "$here/AppIcon.icns" "$app/Contents/Resources/"
-cat > "$app/Contents/Info.plist" <<'EOF'
+cat > "$app/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -24,8 +26,8 @@ cat > "$app/Contents/Info.plist" <<'EOF'
   <key>CFBundleExecutable</key><string>DXMetal Settings</string>
   <key>CFBundleIdentifier</key><string>io.github.rhas1.dxmetal.settings</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.0</string>
-  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleShortVersionString</key><string>$version</string>
+  <key>CFBundleVersion</key><string>$version</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
@@ -38,8 +40,16 @@ EOF
 # approving once in Privacy & Security settings.
 xattr -cr "$app"
 codesign --force --sign - --options runtime "$app"
-# The copy to send to another Mac. It leaves out file metadata that this Mac adds (for example in
-# a synced Documents folder), which would also break the signature's strict check.
-ditto -c -k --keepParent --norsrc --noextattr "$app" "$out/DXMetal Settings.zip"
+
+# The disk image to publish or send to another Mac: the app, plus a shortcut to drag it onto
+# Applications. It leaves out file metadata that this Mac adds (for example in a synced Documents
+# folder), which would also break the signature's strict check.
+stage=$(mktemp -d)
+trap 'rm -rf "$stage"' EXIT
+ditto --norsrc --noextattr "$app" "$stage/DXMetal Settings.app"
+ln -s /Applications "$stage/Applications"
+hdiutil create -quiet -volname "DXMetal Settings $version" -srcfolder "$stage" -format UDZO -ov "$dmg"
+
 echo "Built $app"
-echo "To send it to another Mac, use $out/DXMetal Settings.zip"
+echo "Disk image: $dmg"
+echo "SHA-256: $(shasum -a 256 "$dmg" | cut -d' ' -f1)"
