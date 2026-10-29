@@ -1,5 +1,8 @@
 # Shared settings and helpers, sourced by the other scripts.
 
+# Use macOS's own tools, not same-named ones that Homebrew or others put earlier in PATH.
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
 # Where the app lives. It holds Wine, the renderers and the Windows C: drive (Steam and games).
 # To use an external APFS drive, change the default path below before running setup.sh.
 APP="${APP:-$HOME/Games/DXMetal.app}"
@@ -64,11 +67,33 @@ set_dxmt() { set_opt D3DMETAL integer $(( 1 - $1 )); }
 get_hud() { plutil -extract METAL_HUD raw "$PLIST"; }
 set_hud() { set_opt METAL_HUD integer "$1"; }
 
-# MetalFX spatial upscaling of each frame to 2x: 1 = on, 0 = off. Stored in our own Info.plist key
-# and passed to Steam by run-steam.sh. DXMT only, and meant for scaled resolution.
+# MetalFX spatial upscaling of each frame to 2x: 1 = on, 0 = off. Stored in our own Info.plist key.
+# DXMT only, and meant for scaled resolution.
 get_metalfx() { plutil -extract DXMETAL_METALFX raw "$PLIST" 2>/dev/null || echo 0; }
 set_metalfx() { set_opt DXMETAL_METALFX integer "$1"; }
 metalfx_active() { (( $(get_metalfx) && $(get_dxmt) && ! $(get_retina) )); }
+
+# The wrapper runs its "CLI Custom Commands" setting before starting Wine, so exporting MetalFX's
+# variable there applies it however Steam is started, including a double-click on the app.
+apply_metalfx() {
+  local cmds nl=$'\n'
+  cmds=$(plutil -extract "CLI Custom Commands" raw "$PLIST" 2>/dev/null | grep -v DXMT_METALFX_SPATIAL_SWAPCHAIN || true)
+  metalfx_active && cmds+="${cmds:+$nl}export DXMT_METALFX_SPATIAL_SWAPCHAIN=1"
+  set_opt "CLI Custom Commands" string "$cmds"
+}
+
+# Saves the settings RETINA DXMT HUD METALFX, each 0 or 1. Steam only reads them when it starts,
+# so Wine must not be running.
+save_settings() {
+  if [[ $1 != $(get_retina) ]]; then
+    set_retina $1
+    echo "Resolution mode changed: pick the resolution again in the game's display settings."
+  fi
+  set_dxmt $2
+  set_hud $3
+  set_metalfx $4
+  apply_metalfx
+}
 
 describe_settings() {
   local metalfx=off

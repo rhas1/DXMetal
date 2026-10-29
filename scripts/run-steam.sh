@@ -22,16 +22,10 @@ if [[ "$wanted" != "$current" ]]; then
   # All settings are only read when Steam/Wine starts.
   pgrep -x wineserver >/dev/null &&
     { echo "Steam is running with $(describe_settings). Quit it first (${0:h}/close-wine.sh)."; exit 1; }
-  if [[ $wanted[1] != $current[1] ]]; then
-    set_retina $wanted[1]
-    echo "Resolution mode changed: pick the resolution again in the game's display settings."
-  fi
-  set_dxmt $wanted[2]
-  set_hud $wanted[3]
-  set_metalfx $wanted[4]
+  save_settings $wanted
 fi
+apply_metalfx  # keeps the wrapper's copy in sync, e.g. after updating these scripts
 
 echo "Steam: $(describe_settings)"
-metalfx_active && export DXMT_METALFX_SPATIAL_SWAPCHAIN=1
 # Detached, so closing this Terminal window doesn't take Steam with it.
 nohup "$LAUNCHER" >/dev/null 2>&1 &!

@@ -55,11 +55,11 @@ fi
 [[ -f "$STEAM_DIR/steam.exe" ]] || { echo "Steam didn't install. Run setup again; if that fails, see Troubleshooting in the README."; exit 1; }
 set_opt "Program Name and Path" string "/Program Files (x86)/Steam/steam.exe"
 set_opt "Program Flags" string ""
+apply_metalfx
 
-# Mark the app as a game for macOS Game Mode, and keep Wine and games out of Time Machine.
-set_opt LSApplicationCategoryType string "public.app-category.games"
-set_opt LSSupportsGameMode bool true
-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP" || true
+# The app holds your Steam and game sign-ins, and the wrapper ships with parts of it world-writable:
+# keep other accounts on this Mac out of it. Also keep Wine and games out of Time Machine.
+chmod 700 "$APP"
 tmutil addexclusion "$APP" 2>/dev/null || echo "Note: couldn't exclude the app from Time Machine backups."
 
 echo "Done. Start Steam with ${0:h}/run-steam.sh (or double-click $APP)."
