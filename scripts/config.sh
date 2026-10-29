@@ -1,5 +1,8 @@
 # Shared settings and helpers, sourced by the other scripts.
 
+# Use macOS's own tools, not same-named ones that Homebrew or others put earlier in PATH.
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
 # Where the app lives. It holds Wine, the renderers and the Windows C: drive (Steam and games).
 # To use an external APFS drive, change the default path below before running setup.sh.
 APP="${APP:-$HOME/Games/DXMetal.app}"

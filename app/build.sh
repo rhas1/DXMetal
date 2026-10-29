@@ -37,7 +37,7 @@ EOF
 # that carry Finder metadata. It isn't notarized: a copy that arrives by download or AirDrop needs
 # approving once in Privacy & Security settings.
 xattr -cr "$app"
-codesign --force --sign - "$app"
+codesign --force --sign - --options runtime "$app"
 # The copy to send to another Mac. It leaves out file metadata that this Mac adds (for example in
 # a synced Documents folder), which would also break the signature's strict check.
 ditto -c -k --keepParent --norsrc --noextattr "$app" "$out/DXMetal Settings.zip"

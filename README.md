@@ -33,7 +33,7 @@ Prefer not to use Terminal? Open the [DXMetal Settings app](#dxmetal-settings-ap
    - installs Rosetta 2 if it's missing. This accepts Apple's Rosetta license on your behalf, and it may ask for your password.
    - downloads the Sikarugir wrapper and Wine 11 (about 250 MB), checks that both files are exactly the expected versions, and builds `~/Games/DXMetal.app`
    - installs Windows Steam into it, using Valve's own installer
-   - applies the default settings (scaled resolution, D3DMetal, FPS overlay off, MetalFX upscaling off), marks the app as a game for macOS Game Mode, and excludes it from Time Machine backups
+   - applies the default settings (scaled resolution, D3DMetal, FPS overlay off, MetalFX upscaling off), makes the app private to your Mac account, and excludes it from Time Machine backups
 3. Start Steam and sign in with your Steam account:
    ```
    zsh scripts/run-steam.sh
@@ -135,7 +135,7 @@ Tested another game? Add a row with the translator you used, and anything worth 
 
 ## Tips for smooth games
 
-- **Play in fullscreen.** The app is marked as a game, so macOS may switch on Game Mode (🎮 in the menu bar), which gives the game priority and reduces Bluetooth controller lag.
+- **Close other apps** while playing, especially on 8 GB Macs. macOS Game Mode, which normally does this for you, doesn't turn on for Windows games run through Wine.
 - **Cap the frame rate** at your screen's refresh rate: 60 on most MacBooks. Anything higher only produces extra heat.
 - **VSync off** makes the controls feel more responsive. Turn it on if you see tearing, a horizontal split line across the picture when the camera turns fast.
 - **Keep resolution scale at 100%.** Games already run below Retina resolution by default, so only lower it as a last resort.
@@ -207,10 +207,12 @@ Steam and your games update themselves. Wine and the wrapper stay at the version
 2. In `scripts/config.sh`, update `ENGINE_URL` or `TEMPLATE_URL` **and** the matching `ENGINE_SHA256` or `TEMPLATE_SHA256`. GitHub lists each file's SHA-256 on the release page, or you can run `shasum -a 256` on the downloaded file.
 3. Rebuild: `./scripts/close-wine.sh`, then `./scripts/uninstall.sh`, then `zsh scripts/setup.sh`. This removes installed games, so they download again, and you sign in to Steam and any game accounts again.
 
-## Privacy
+## Privacy and security
 
-- **Never share or upload your `DXMetal.app`.** It contains your Steam and game sign-ins, cookies and saves. To set up another Mac, copy this folder (or the DXMetal Settings app) to it and install there, rather than copying `DXMetal.app`.
-- These scripts contain no accounts, keys or personal details. They only download from GitHub (the wrapper and Wine, checked against pinned checksums) and Valve (the Steam installer).
+- **Never share or upload your `DXMetal.app`.** It contains your Steam and game sign-ins, cookies and saves. To set up another Mac, copy this folder (or the DXMetal Settings app) to it and install there, rather than copying `DXMetal.app`. Setup makes it readable only by your Mac account.
+- **Wine isn't a sandbox.** Windows programs run with the same access to your files as any app you run, and Wine shows them your whole Mac as drive `Z:`. Only install games and mods from sources you trust.
+- **If macOS asks whether "wine" or "wineserver" may accept incoming network connections,** you can choose Deny. Online play usually works without it; allow it only if a game can't host or join sessions.
+- These scripts and the app contain no accounts, keys or personal details. They only download from GitHub (the wrapper and Wine, checked against pinned checksums) and Valve (the Steam installer).
 
 ## How it works
 
