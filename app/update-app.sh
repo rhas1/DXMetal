@@ -16,8 +16,9 @@ check)
   ;;
 download)
   url="https://github.com/$repo/releases/download/v$2"
-  curl -fsSL --max-time 600 -o "$3/Vapor-$2.dmg" "$url/Vapor-$2.dmg"
-  curl -fsSL --max-time 30 -o "$3/SHA256SUMS" "$url/SHA256SUMS"
+  { curl -fsSL --max-time 600 -o "$3/Vapor-$2.dmg" "$url/Vapor-$2.dmg" &&
+    curl -fsSL --max-time 30 -o "$3/SHA256SUMS" "$url/SHA256SUMS"; } 2>/dev/null ||
+    { echo "Couldn't download Vapor $2 from GitHub. Check your internet connection and try again."; exit 1; }
   (cd "$3" && shasum -a 256 -c SHA256SUMS >/dev/null 2>&1) ||
     { echo "The download doesn't match its checksum, so it wasn't installed."; exit 1; }
   echo "$3/Vapor-$2.dmg"
