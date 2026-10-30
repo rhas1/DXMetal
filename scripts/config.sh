@@ -3,12 +3,18 @@
 # Use macOS's own tools, not same-named ones that Homebrew or others put earlier in PATH.
 PATH=/usr/bin:/bin:/usr/sbin:/sbin
 
-# Where the app lives. It holds Wine, the renderers and the Windows C: drive (Steam and games).
-# To use an external APFS drive, change the default path below before running setup.sh.
-APP="${APP:-$HOME/Games/DXMetal.app}"
+VAPOR_VERSION=2.0.0  # this release; app/build.sh numbers the app with it
 
-# Pinned Sikarugir wrapper template and Wine 11 engine (built from CrossOver sources; they ship
-# the D3DMetal and DXMT renderers). When updating, change each URL and its SHA-256 together.
+# Where Vapor Steam lives: the app that holds Wine, the translators and the Windows C: drive
+# (Steam and your games). To use an external APFS drive, change the default path below before
+# running setup.sh.
+APP="${APP:-$HOME/Games/Vapor Steam.app}"
+# Where DXMetal, Vapor's previous name, installed it. setup.sh moves an install from there.
+LEGACY_APP="${LEGACY_APP:-$HOME/Games/DXMetal.app}"
+
+# Pinned Sikarugir wrapper template and Wine 11 engine (built from CrossOver sources; the template
+# ships the D3DMetal and DXMT translators). tools/update-pins.sh moves these to newer releases; when
+# editing by hand, change each URL and its SHA-256 together.
 TEMPLATE_URL="https://github.com/Sikarugir-App/Template/releases/download/v1.0/Template-1.0.24.tar.xz"
 TEMPLATE_SHA256="4b5f89eeb9ef139936bdfad33d9b420b05ea4597cb7d63376674f7a8e171321c"
 ENGINE_URL="https://github.com/Sikarugir-App/Engines/releases/download/v1.0/WS12WineSikarugir11.0_1.tar.xz"
@@ -21,9 +27,28 @@ PLIST="$APP/Contents/Info.plist"
 PREFIX_DIR="$APP/Contents/SharedSupport/prefix"  # Wine prefix: registry + C: drive
 DRIVE_C="$APP/Contents/drive_c"
 STEAM_DIR="$DRIVE_C/Program Files (x86)/Steam"
+# The translators' shader caches, with a folder per game. Games rebuild them as needed.
+CACHE_DIRS=("$(getconf DARWIN_USER_CACHE_DIR)"{d3dm,dxmt})
 
 # Sets a wrapper setting, e.g. set_opt "Program Flags" string "-foo"
 set_opt() { plutil -replace "$1" -"$2" "$3" "$PLIST"; }
+
+# The template and engine an install was built from, which setup.sh records, and the ones pinned
+# above. needs_update succeeds when they differ.
+installed_components() { plutil -extract VAPOR_COMPONENTS raw "$PLIST" 2>/dev/null || true; }
+pinned_components() { echo "${TEMPLATE_URL:t} ${ENGINE_URL:t}"; }
+needs_update() { [[ $(installed_components) != "$(pinned_components)" ]]; }
+
+# Stops unless the disk that holds (or will hold) $1 has at least $2 GB free.
+need_space() {
+  local dir=$1 free
+  until [[ -d $dir ]]; do dir=${dir:h}; done
+  free=$(df -Pk "$dir" | awk 'NR == 2 {print int($4 / 1048576)}')
+  (( free >= $2 )) || { echo "Not enough free space: $free GB free, $2 GB needed."; exit 1; }
+}
+
+# The total size of the given files and folders, e.g. "49G". Missing ones count as nothing.
+size_of() { du -shc "$@" 2>/dev/null | tail -1 | awk '{print $1}'; }
 
 # Waits up to $1 seconds for all Wine processes to exit; fails if Wine is still running.
 wait_for_wine() {
@@ -67,10 +92,13 @@ set_dxmt() { set_opt D3DMETAL integer $(( 1 - $1 )); }
 get_hud() { plutil -extract METAL_HUD raw "$PLIST"; }
 set_hud() { set_opt METAL_HUD integer "$1"; }
 
-# MetalFX spatial upscaling of each frame to 2x: 1 = on, 0 = off. Stored in our own Info.plist key.
-# DXMT only, and meant for scaled resolution.
-get_metalfx() { plutil -extract DXMETAL_METALFX raw "$PLIST" 2>/dev/null || echo 0; }
-set_metalfx() { set_opt DXMETAL_METALFX integer "$1"; }
+# MetalFX spatial upscaling of each frame to 2x: 1 = on, 0 = off. Stored in our own Info.plist key
+# (DXMETAL_METALFX in installs made by DXMetal). DXMT only, and meant for scaled resolution.
+get_metalfx() {
+  plutil -extract VAPOR_METALFX raw "$PLIST" 2>/dev/null || plutil -extract DXMETAL_METALFX raw "$PLIST" 2>/dev/null ||
+    echo 0
+}
+set_metalfx() { set_opt VAPOR_METALFX integer "$1"; }
 metalfx_active() { (( $(get_metalfx) && $(get_dxmt) && ! $(get_retina) )); }
 
 # The wrapper runs its "CLI Custom Commands" setting before starting Wine, so exporting MetalFX's

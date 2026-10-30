@@ -9,7 +9,7 @@
 set -euo pipefail
 source "${0:A:h}/config.sh"
 
-[[ -f "$STEAM_DIR/steam.exe" ]] || { echo "Steam isn't installed yet; run ${0:h}/setup.sh first."; exit 1; }
+[[ -f "$STEAM_DIR/steam.exe" ]] || { echo "Vapor Steam isn't installed yet; run ${0:h}/setup.sh first."; exit 1; }
 
 self=$0  # inside functions, $0 is the function's name
 usage() { echo "Usage: $self [RETINA [DXMT [HUD [METALFX]]]], each 0 or 1 (e.g. $self 0 1 0 1)"; exit 1; }
