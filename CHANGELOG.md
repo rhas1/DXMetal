@@ -2,6 +2,20 @@
 
 Notable changes to Vapor, called DXMetal before 2.0.0. Version numbers follow [Semantic Versioning](https://semver.org).
 
+## [2.1.0] - 2026-10-30
+
+Open Vapor and click **Move**: it moves Vapor Steam out of `~/Games`, so only Vapor shows up when you search in Spotlight. Steam, your games, sign-ins and settings stay.
+
+### Changed
+
+- Vapor Steam now lives in `~/Library/Application Support/Vapor.noindex`, a folder Spotlight doesn't search. Vapor offers to move an install from `~/Games`, where 2.0 and DXMetal put it, and removes that folder if nothing else is in it. Moving takes a moment, and until then everything keeps working where it is. `setup.sh` does the same from Terminal.
+- The disk image opens to a window designed for installing: drag Vapor onto Applications, with a reminder of how to open Vapor the first time.
+
+### Fixed
+
+- Wine no longer leaves a `Steam.desktop` file on the desktop when Steam installs, or adds Windows shortcuts and file types to hidden menu folders. Installs get this fix when they're installed, updated or moved. Delete any `Steam.desktop` file that's already there.
+- `app/build.sh` no longer fails to sign the app when the repository is in a synced folder, such as Documents in iCloud.
+
 ## [2.0.0] - 2026-10-30
 
 DXMetal is now **Vapor**. Open the Vapor app and click **Move to Vapor**: it moves your install across, keeping Steam, your games, sign-ins and settings.
@@ -41,5 +55,6 @@ The first tagged release, as DXMetal.
 - The scripts use macOS's own tools, whatever else is in your PATH.
 - DXMetal Settings is signed with the hardened runtime, and contains no accounts or personal details.
 
+[2.1.0]: https://github.com/rhas1/Vapor/releases/tag/v2.1.0
 [2.0.0]: https://github.com/rhas1/Vapor/releases/tag/v2.0.0
 [1.0.0]: https://github.com/rhas1/Vapor/releases/tag/v1.0.0

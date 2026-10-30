@@ -3,7 +3,7 @@
 # Use macOS's own tools, not same-named ones that Homebrew or others put earlier in PATH.
 PATH=/usr/bin:/bin:/usr/sbin:/sbin
 
-VAPOR_VERSION=2.0.0  # this release; app/build.sh numbers the app with it
+VAPOR_VERSION=2.1.0  # this release; app/build.sh numbers the app with it
 
 # Where Vapor Steam goes: the app that holds Wine, the translators and the Windows C: drive (Steam
 # and your games). Spotlight skips folders whose names end in .noindex, so searching shows only the

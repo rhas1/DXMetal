@@ -12,7 +12,7 @@ cat <<EOF
 
 1. Download **Vapor-$v.dmg** below, open it, and drag **Vapor** onto **Applications**.
 2. Open Vapor. macOS blocks the first launch because Vapor isn't notarized: go to **System Settings → Privacy & Security** and click **Open Anyway**.
-3. Click **Install**, or **Move to Vapor** if you used DXMetal. Then click **Start Steam**, sign in, and install your games.
+3. Click **Install**. Then click **Start Steam**, sign in, and install your games.
 
 Already using Vapor? Choose **More → Check for Updates…** in the app.
 

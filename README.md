@@ -5,14 +5,14 @@ Play Windows-only Steam games on an Apple Silicon Mac, including online with fri
 Vapor comes in two parts:
 
 - **Vapor**, a Mac app that installs, updates and removes everything, changes the settings, and starts or quits Steam.
-- **Vapor Steam** (`~/Games/Vapor Steam.app`), the install it manages. It holds:
+- **Vapor Steam**, the install it manages, kept in a hidden folder so that only the Vapor app shows up in Spotlight (see [Where things live](#where-things-live)). It holds:
   - **Wine 11**, which lets Windows programs run on macOS
   - **DXMT** (open source) and **D3DMetal** (by Apple), two translators that turn a game's DirectX graphics into Metal. You choose which one to use.
   - **Windows Steam**, and the games you install through it
 
 Nothing else is installed on the Mac apart from Rosetta 2. You don't need Homebrew, Xcode or an Apple developer account. Everything the app does is also available as scripts, for Terminal users.
 
-> **Used DXMetal?** That was Vapor's name before version 2.0.0. Open Vapor and click **Move to Vapor**: it moves your install across, keeping Steam, your games, sign-ins and settings.
+> **Used Vapor 2.0, or DXMetal (Vapor's name before 2.0)?** Open Vapor and click **Move**. It moves your install out of `~/Games`, where Spotlight finds it, keeping Steam, your games, sign-ins and settings.
 
 ## Requirements
 
@@ -30,7 +30,7 @@ Nothing else is installed on the Mac apart from Rosetta 2. You don't need Homebr
 2. Open Vapor. The first time, macOS blocks it because it isn't notarized by Apple: go to **System Settings → Privacy & Security**, click **Open Anyway** next to "Vapor" was blocked, and confirm. You only do this once per Mac. (To check the download first, run `shasum -a 256` on it and compare the result with the SHA-256 in the release notes.)
 3. Click **Install**. It takes a few minutes:
    - It installs Rosetta 2 if it's missing. This accepts Apple's Rosetta license on your behalf and asks for your password.
-   - It downloads the Sikarugir wrapper and Wine 11 (about 250 MB), checks both against pinned checksums, and builds `~/Games/Vapor Steam.app`.
+   - It downloads the Sikarugir wrapper and Wine 11 (about 250 MB), checks both against pinned checksums, and builds Vapor Steam.
    - It installs Windows Steam, using Valve's own installer, and makes the install private to your Mac account.
 4. Click **Start Steam**, sign in with your Steam account, and install your games as usual.
 5. Click **Play** in Steam. A game's first launch may install Windows components it needs, such as Visual C++ or DirectX runtimes, which takes a minute. Some games also ask you to sign in to their publisher's account.
@@ -61,7 +61,7 @@ Vapor's window shows whether Steam is running, which game is running, and four s
 - Changes are saved as soon as you make them. Steam only reads the settings when it starts, so they're **locked while Steam is running**: quit Steam to change them.
 - After changing the resolution, pick the resolution again in each game's display settings.
 - **Start Steam**, **Show Steam** and **Quit Steam** do what they say. Closing Steam's window only hides it to the menu bar; **Show Steam** brings it back. If a game is running, Quit asks first, because unsaved progress would be lost.
-- Double-clicking `~/Games/Vapor Steam.app` also starts Steam with your saved settings.
+- Double-clicking Vapor Steam (see [Where things live](#where-things-live)) also starts Steam with your saved settings.
 
 The **More** menu has:
 
@@ -97,7 +97,7 @@ Run these from the folder. You can also `cd scripts` first and leave out the `sc
 
 | To... | Run |
 |---|---|
-| Install, update, or move a DXMetal install | `zsh scripts/setup.sh` |
+| Install, update, or move an install from where an earlier version put it | `zsh scripts/setup.sh` |
 | Start Steam with your current settings (or show its window) | `./scripts/run-steam.sh` |
 | Start Steam with different settings | `./scripts/run-steam.sh RETINA DXMT HUD METALFX`, e.g. `./scripts/run-steam.sh 0 1 0 1` (see below) |
 | See the settings, whether an update is ready, and which translator a running game uses | `./scripts/status.sh` |
@@ -180,15 +180,17 @@ Online play works as it does on Windows: friends, invites and matchmaking go thr
 | Stutter comes back after it was smooth | macOS deletes caches when disk space runs low. Keep 20 GB or more free. |
 | Every controller press happens twice | In Steam, right-click the game → **Properties** → **Controller** → **Disable Steam Input**. |
 | `steamerrorreporter` appears briefly after launching a game | Harmless. It's a known warning from Steam's networking code under Wine, and the game keeps running. |
+| Spotlight shows **Vapor Steam** next to Vapor | Your install is where an earlier version put it. Open Vapor and click **Move**. |
+| A `Steam.desktop` file appears on the desktop | Wine made it when Steam's installer created a Windows shortcut. Delete it. Installs made, updated or moved by Vapor 2.1 or later don't make these. |
 
 ### An update stopped partway
 
-An update moves your Windows drive (Steam, games and sign-ins) into a fresh wrapper in the hidden folder `~/Games/.vapor-update`, then swaps it into place. If anything fails, setup moves everything back. If the Mac lost power at exactly the wrong moment, setup refuses to continue and shows where the Windows drive is. To put it back:
+An update moves your Windows drive (Steam, games and sign-ins) into a fresh wrapper in a hidden `.vapor-update` folder next to Vapor Steam, then swaps it into place. If anything fails, setup moves everything back. If the Mac lost power at exactly the wrong moment, setup refuses to continue and shows where the Windows drive is. To put it back:
 
-1. In Finder, choose **Go → Go to Folder…** and open `~/Games/.vapor-update`. It contains `new.app` and maybe `old.app`.
-2. If `~/Games/Vapor Steam.app` is missing, move `old.app` back to `~/Games` and rename it **Vapor Steam** (or **DXMetal**, if you were moving from DXMetal).
+1. In Finder, choose **Go → Go to Folder…** and open `~/Library/Application Support/Vapor.noindex/.vapor-update` (or `~/Games/.vapor-update`, for an update started by Vapor 2.0 or DXMetal). It contains `new.app` and maybe `old.app`.
+2. If Vapor Steam is missing from the folder above `.vapor-update`, move `old.app` back there and rename it **Vapor Steam** (or **DXMetal**, if that was its name).
 3. Right-click the app with the Windows drive → **Show Package Contents** → **Contents → SharedSupport**, and move the `prefix` folder into the same place in your Vapor Steam (or DXMetal) app.
-4. Delete `~/Games/.vapor-update`, then open Vapor and run the update again.
+4. Delete the `.vapor-update` folder, then open Vapor and run the update again.
 
 ## Privacy and security
 
@@ -217,11 +219,12 @@ Neither Steam nor your games are modified. Rosetta 2 translates their Intel code
 
 ### Where things live
 
-- `~/Games/Vapor Steam.app` holds everything:
+- `~/Library/Application Support/Vapor.noindex/Vapor Steam.app` holds everything. Spotlight doesn't search folders whose names end in `.noindex`, so it only finds the Vapor app. To see it in Finder, choose **Go → Go to Folder…** and paste the folder's path. Vapor 2.0 and DXMetal kept it in `~/Games`; Vapor offers to move it from there.
   - `Contents/SharedSupport/prefix` is the Windows drive: Wine's registry, and the C: drive with Steam and your games. `Contents/drive_c` is a shortcut to that C: drive. This is the only part an update keeps; everything else is replaced.
   - `Contents/Info.plist` stores the wrapper's settings, and which versions built it. To apply MetalFX, Vapor keeps one line in its "CLI Custom Commands" setting; anything else you add there is kept, including through updates.
 - The shader caches are in the Mac's cache folder: run `open $(getconf DARWIN_USER_CACHE_DIR)` and look in `d3dm/` (D3DMetal) and `dxmt/` (DXMT), with one folder per game.
-- **Keeping it on an external drive:** before installing, edit the `APP=` line near the top of `scripts/config.sh`, replacing `$HOME/Games/Vapor Steam.app` with something like `/Volumes/GameSSD/Vapor Steam.app`, and install from Terminal. The drive must be formatted as APFS.
+- Vapor switches off Wine's menu builder (`winemenubuilder`), which would otherwise copy Windows shortcuts to the Mac's desktop as `.desktop` files whenever a program such as Steam's installer creates one.
+- **Keeping it on an external drive:** before installing, edit the `INSTALL_PATH=` line near the top of `scripts/config.sh`, replacing `$HOME/Library/Application Support/Vapor.noindex/Vapor Steam.app` with something like `/Volumes/GameSSD/Vapor.noindex/Vapor Steam.app`, and install from Terminal. The drive must be formatted as APFS.
 
 ## Files
 
@@ -233,26 +236,30 @@ Vapor/
 ├── LICENSE
 ├── scripts/      setup.sh, run-steam.sh, status.sh, close-wine.sh, clear-caches.sh,
 │                 diagnostics.sh, uninstall.sh, config.sh
-├── app/          Vapor.swift, update-app.sh, build.sh, AppIcon.icns
-├── tools/        update-pins.sh, release-notes.sh
+├── app/          Vapor.swift, update-app.sh, build.sh, AppIcon.icns,
+│                 dmg/ (the disk image window's background and layout)
+├── tools/        update-pins.sh, release-notes.sh, dmg-window.sh, dmg-background.swift,
+│                 clean-dsstore.py
 └── .github/      workflows/checks.yml, release.yml, update-pins.yml
 ```
 
 | File | What it does |
 |---|---|
-| `scripts/setup.sh` | Installs Vapor Steam, updates it (keeping Steam, games and settings), or moves a DXMetal install. Safe to run again: it skips finished steps. Steam must be closed. |
+| `scripts/setup.sh` | Installs Vapor Steam, updates it (keeping Steam, games and settings), or moves an install from where an earlier version put it. Safe to run again: it skips finished steps. Steam must be closed. |
 | `scripts/run-steam.sh` | Starts Steam, or shows its window, optionally changing the settings first (see [Launch arguments](#launch-arguments)). |
 | `scripts/status.sh` | Shows the settings, whether an update is ready, whether Steam/Wine is running, and which translator a running game uses. |
 | `scripts/close-wine.sh` | Quits everything running in Wine, including other Wine apps such as CrossOver. It asks before closing a running game, because unsaved progress is lost. It then asks Steam to exit properly, so Steam saves its state, and force-quits anything still running after 60 seconds. |
 | `scripts/clear-caches.sh` | Deletes the shader caches, after asking you to confirm. |
 | `scripts/diagnostics.sh` | Prints versions, settings and status for a bug report, without names, file paths or accounts. |
-| `scripts/uninstall.sh` | Deletes Vapor Steam (and any DXMetal install), **including Steam, all installed games and saved sign-ins**, plus the shader caches, after asking you to confirm. |
+| `scripts/uninstall.sh` | Deletes Vapor Steam (including any install where an earlier version put it), **including Steam, all installed games and saved sign-ins**, plus the shader caches, after asking you to confirm. |
 | `scripts/config.sh` | Shared settings and helpers: Vapor's version, where the install lives, the pinned download links and their checksums, and how settings are read and changed. |
 | `app/Vapor.swift` | The Vapor app's source code: one window that runs the scripts above, which are bundled inside it. |
 | `app/update-app.sh` | How the app checks for, downloads and installs new versions of itself. |
 | `app/build.sh` | Builds `Vapor.app` and its disk image into `app/build/`. Needs Apple's free Command Line Tools (`xcode-select --install`). |
+| `app/dmg/` | The disk image window's background and layout, which `build.sh` copies into each disk image. |
 | `tools/update-pins.sh` | Points `config.sh` at the newest Sikarugir wrapper and Wine 11 builds, with fresh checksums. |
 | `tools/release-notes.sh` | Writes a release's notes from `CHANGELOG.md`. |
+| `tools/dmg-window.sh` | Remakes `app/dmg/` after a design change: draws the background (`dmg-background.swift`), has Finder lay out the window, and removes what Finder's layout file records about the Mac it was made on (`clean-dsstore.py`). Run it on a Mac; macOS asks once to let it control Finder. |
 | `.github/workflows/` | Checks each change, builds and publishes releases, and proposes newer wrapper and Wine versions daily. |
 
 ## Releasing
