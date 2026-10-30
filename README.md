@@ -1,63 +1,112 @@
-# DXMetal
+# Vapor
 
 Play Windows-only Steam games on an Apple Silicon Mac, including online with friends on Windows PCs.
 
-These scripts build one self-contained app, `~/Games/DXMetal.app`, that holds:
+Vapor comes in two parts:
 
-- **Wine 11**, which lets Windows programs run on macOS
-- **D3DMetal** (by Apple) and **DXMT** (open source), two translators that turn a game's DirectX graphics into Metal. You can choose which one to use.
-- **Windows Steam**, and the games you install through it
+- **Vapor**, a Mac app that installs, updates and removes everything, changes the settings, and starts or quits Steam.
+- **Vapor Steam** (`~/Games/Vapor Steam.app`), the install it manages. It holds:
+  - **Wine 11**, which lets Windows programs run on macOS
+  - **DXMT** (open source) and **D3DMetal** (by Apple), two translators that turn a game's DirectX graphics into Metal. You choose which one to use.
+  - **Windows Steam**, and the games you install through it
 
-Nothing else is installed on the Mac apart from Rosetta 2. You don't need Homebrew, Xcode or an Apple developer account.
+Nothing else is installed on the Mac apart from Rosetta 2. You don't need Homebrew, Xcode or an Apple developer account. Everything the app does is also available as scripts, for Terminal users.
+
+> **Used DXMetal?** That was Vapor's name before version 2.0.0. Open Vapor and click **Move to Vapor**: it moves your install across, keeping Steam, your games, sign-ins and settings.
 
 ## Requirements
 
 - A Mac with Apple Silicon (M1 or newer). Intel Macs won't work.
 - macOS 14.6 or newer
-- About 4 GB of free space for Wine and Steam, plus room for your games. Try to keep 20 GB or more free beyond that.
+- About 5 GB of free space for Wine and Steam, plus room for your games. Try to keep 20 GB or more free beyond that.
 - Your Mac password, only needed if Rosetta 2 has to be installed
 - 16 GB of memory is recommended. 8 GB works, but close other apps while playing.
 
-## Setup (once per Mac)
+## Install
 
-Prefer not to use Terminal? Open the [DXMetal Settings app](#dxmetal-settings-app), click **Install**, then **Start Steam**, and continue from step 4.
+### With the Vapor app
 
-1. Copy this folder to the Mac (AirDrop, USB stick or `git clone`).
-2. Open **Terminal**, go into the folder and run the setup:
-   ```
-   cd ~/Downloads/dxmetal      # wherever the folder is
-   zsh scripts/setup.sh
-   ```
-   This takes a few minutes. It:
-   - checks that the Mac has Apple Silicon and macOS 14.6 or newer
-   - installs Rosetta 2 if it's missing. This accepts Apple's Rosetta license on your behalf, and it may ask for your password.
-   - downloads the Sikarugir wrapper and Wine 11 (about 250 MB), checks that both files are exactly the expected versions, and builds `~/Games/DXMetal.app`
-   - installs Windows Steam into it, using Valve's own installer
-   - applies the default settings (scaled resolution, D3DMetal, FPS overlay off, MetalFX upscaling off), makes the app private to your Mac account, and excludes it from Time Machine backups
-3. Start Steam and sign in with your Steam account:
-   ```
-   zsh scripts/run-steam.sh
-   ```
-4. Install your games through Steam as usual.
-5. Click **Play**. A game's first launch may install Windows components it needs, such as Visual C++ or DirectX runtimes, which takes a minute. Some games also ask you to sign in to their publisher's account.
+1. Download `Vapor-<version>.dmg` from the [latest release](https://github.com/rhas1/Vapor/releases/latest), open it, and drag **Vapor** onto **Applications**.
+2. Open Vapor. The first time, macOS blocks it because it isn't notarized by Apple: go to **System Settings → Privacy & Security**, click **Open Anyway** next to "Vapor" was blocked, and confirm. You only do this once per Mac. (To check the download first, run `shasum -a 256` on it and compare the result with the SHA-256 in the release notes.)
+3. Click **Install**. It takes a few minutes:
+   - It installs Rosetta 2 if it's missing. This accepts Apple's Rosetta license on your behalf and asks for your password.
+   - It downloads the Sikarugir wrapper and Wine 11 (about 250 MB), checks both against pinned checksums, and builds `~/Games/Vapor Steam.app`.
+   - It installs Windows Steam, using Valve's own installer, and makes the install private to your Mac account.
+4. Click **Start Steam**, sign in with your Steam account, and install your games as usual.
+5. Click **Play** in Steam. A game's first launch may install Windows components it needs, such as Visual C++ or DirectX runtimes, which takes a minute. Some games also ask you to sign in to their publisher's account.
 
-> **Tip:** if `./scripts/something.sh` says "permission denied", run it as `zsh scripts/something.sh` instead. Copying the folder can remove the permission that lets the scripts run directly.
+### With Terminal
 
-## Everyday use
+Copy this folder to the Mac (AirDrop, USB stick or `git clone`), then:
 
-Run these from the `dxmetal` folder. You can also `cd scripts` first and leave out the `scripts/` part.
+```
+cd ~/Downloads/Vapor      # wherever the folder is
+zsh scripts/setup.sh
+zsh scripts/run-steam.sh
+```
+
+`setup.sh` does the same as the app's **Install** button. See [Command line](#command-line) for the other scripts.
+
+## Using Vapor
+
+Vapor's window shows whether Steam is running, which game is running, and four settings:
+
+| Setting | Choices |
+|---|---|
+| Resolution | **Scaled** (default): games see your screen at its "looks like" size. Faster. **Retina**: games can use the full Retina resolution, about 4× the pixels. Sharper, but much heavier. |
+| Translator | **DXMT** (default): open source, for DirectX 10 and 11 games, and sometimes the faster one. **D3DMetal**: Apple's translator, for DirectX 11 and 12 games. |
+| FPS overlay | Apple's Metal performance overlay in games, showing the frame rate and frame timing |
+| MetalFX upscaling | Apple's MetalFX upscales each frame to twice its resolution, so games at scaled resolution look close to Retina-sharp at about the same speed. Works with DXMT at scaled resolution. Experimental. |
+
+- Changes are saved as soon as you make them. Steam only reads the settings when it starts, so they're **locked while Steam is running**: quit Steam to change them.
+- After changing the resolution, pick the resolution again in each game's display settings.
+- **Start Steam**, **Show Steam** and **Quit Steam** do what they say. Closing Steam's window only hides it to the menu bar; **Show Steam** brings it back. If a game is running, Quit asks first, because unsaved progress would be lost.
+- Double-clicking `~/Games/Vapor Steam.app` also starts Steam with your saved settings.
+
+The **More** menu has:
+
+| Item | What it does |
+|---|---|
+| Check for Updates… | Looks for a new version of Vapor. See [Updates](#updates). |
+| Clear Caches… | Deletes the translators' shader caches, after asking Yes or No. Games rebuild them as you play, so expect some stutter the first time through each area. Useful if a game shows graphics glitches after an update. |
+| Copy Diagnostics | Copies versions, settings and status for a bug report. It contains no names, file paths or accounts. |
+| Uninstall Vapor Steam… | Deletes Vapor Steam, **including Steam, all installed games, your sign-ins and any saves stored only on this Mac**, plus the shader caches, after asking Yes or No. Then it offers to move Vapor itself to the Trash. Saves in Steam Cloud stay online. |
+| Vapor on GitHub | Opens this page. |
+
+**About MetalFX upscaling:**
+- It only switches on with DXMT at scaled resolution. If it's on while you use D3DMetal or Retina, it stays inactive, and Vapor says so.
+- It also upscales Steam's own window, because Steam's interface runs on DXMT.
+- With the FPS overlay on, DXMT adds a "MetalFX: Spatial" line to it while upscaling is active.
+- It's experimental: DXMT describes itself as not yet ready for general users.
+
+Each translator builds its own cache of a game's converted shaders (the small programs that draw effects). After switching translators, expect stutter the first time through each area. To compare the two fairly, play the same section twice on each with the overlay on, and compare the FPS on the second pass.
+
+## Updates
+
+| What | How it updates |
+|---|---|
+| **Vapor** | Vapor checks GitHub once a day and shows **Update Vapor** when there's a new version. You can also choose **More → Check for Updates…**. It downloads the new version, checks it against the release's `SHA256SUMS`, replaces itself and restarts. |
+| **Wine, the wrapper and the translators** | New Vapor releases bring newer versions. When your install is older, Vapor shows **Update**: it builds a fresh wrapper and moves your Windows drive into it, so **Steam, your games, sign-ins and settings stay**. Only about 250 MB downloads. It takes a few minutes, mostly while macOS checks the new wrapper, as it does the first time any new app runs. From Terminal, `zsh scripts/setup.sh` does the same. |
+| **Steam and your games** | They update themselves, as on Windows. |
+
+The translators come inside the Sikarugir wrapper, so an update brings new versions of D3DMetal, DXMT and DXVK together.
+
+## Command line
+
+Run these from the folder. You can also `cd scripts` first and leave out the `scripts/` part. If one says "permission denied", run it as `zsh scripts/<name>.sh` instead: copying the folder can remove the permission that lets the scripts run directly.
 
 | To... | Run |
 |---|---|
-| Start Steam with your current settings | `./scripts/run-steam.sh`, or double-click `~/Games/DXMetal.app` |
+| Install, update, or move a DXMetal install | `zsh scripts/setup.sh` |
+| Start Steam with your current settings (or show its window) | `./scripts/run-steam.sh` |
 | Start Steam with different settings | `./scripts/run-steam.sh RETINA DXMT HUD METALFX`, e.g. `./scripts/run-steam.sh 0 1 0 1` (see below) |
-| Do any of these without Terminal | Open the [DXMetal Settings app](#dxmetal-settings-app) |
-| See the settings, and which translator a running game uses | `./scripts/status.sh` |
+| See the settings, whether an update is ready, and which translator a running game uses | `./scripts/status.sh` |
 | Quit Steam and Wine | Steam menu → **Exit**, or `./scripts/close-wine.sh` |
+| Clear the shader caches | `./scripts/clear-caches.sh` |
+| Print diagnostics for a bug report | `./scripts/diagnostics.sh` |
+| Remove everything | `./scripts/uninstall.sh` |
 
-`run-steam.sh` starts Steam in the background, so you can close the Terminal window afterwards. Closing Steam's window only hides it to the menu bar. To bring it back, run `./scripts/run-steam.sh` again.
-
-## Launch arguments
+### Launch arguments
 
 `run-steam.sh` takes up to four arguments, each `0` or `1`. Any you leave off keep their current setting, so `./scripts/run-steam.sh` on its own changes nothing.
 
@@ -67,62 +116,28 @@ Run these from the `dxmetal` folder. You can also `cd scripts` first and leave o
 
 | Argument | `0` | `1` |
 |---|---|---|
-| `RETINA` (1st) | **Scaled:** games see your screen at its scaled ("looks like") size. Faster. | **Retina:** games can use the full Retina resolution, about 4× the pixels. Sharper, but much heavier. |
-| `DXMT` (2nd) | **D3DMetal**, Apple's translator, for DirectX 11 and 12 games | **DXMT**, an open-source translator for DirectX 10 and 11 games that's sometimes faster |
-| `HUD` (3rd) | No overlay | **Metal performance overlay** in games, showing FPS and frame timing |
-| `METALFX` (4th) | No upscaling | **MetalFX upscaling:** Apple's MetalFX upscales each frame to twice its resolution, so games at scaled resolution look close to Retina-sharp at about the same speed. DXMT at scaled resolution only. Experimental. |
-
-Some examples:
+| `RETINA` (1st) | Scaled resolution | Retina resolution |
+| `DXMT` (2nd) | D3DMetal | DXMT |
+| `HUD` (3rd) | No overlay | FPS overlay |
+| `METALFX` (4th) | No upscaling | MetalFX upscaling |
 
 | Command | Result |
 |---|---|
-| `./scripts/run-steam.sh 0 0 0 0` | Scaled resolution, D3DMetal, no overlay, no upscaling (the defaults) |
+| `./scripts/run-steam.sh 0 1 0 0` | Scaled resolution, DXMT, no overlay, no upscaling (the defaults) |
 | `./scripts/run-steam.sh 0 1 0 1` | Scaled resolution, DXMT, with MetalFX upscaling |
-| `./scripts/run-steam.sh 0 1 1` | Scaled resolution, DXMT, with the FPS overlay. MetalFX stays as it was. |
-| `./scripts/run-steam.sh 1 0` | Retina resolution, D3DMetal. The rest stays as it was. |
-| `./scripts/run-steam.sh` | Keep the current settings |
+| `./scripts/run-steam.sh 0 0 1` | Scaled resolution, D3DMetal, with the FPS overlay. MetalFX stays as it was. |
+| `./scripts/run-steam.sh 1` | Retina resolution. The rest stays as it was. |
 
-The settings are remembered, so you only need arguments when you want to change something. They apply to every game you launch from Steam.
-
-- **Settings can only change while Steam is closed.** If Steam is running with different settings, the script stops and tells you. To switch in one step: `./scripts/close-wine.sh && ./scripts/run-steam.sh 0 1 0 1`
-- After changing the resolution mode, pick the resolution again in each game's display settings.
-- **About MetalFX upscaling:**
-  - It only switches on with DXMT at scaled resolution. If it's on while you use D3DMetal or Retina, it stays inactive, and `status.sh` says so.
-  - It also upscales Steam's own window, because Steam's interface runs on DXMT.
-  - With the overlay on, DXMT adds a "MetalFX: Spatial" line to it while upscaling is active.
-  - It's experimental: DXMT describes itself as not yet ready for general users.
-- Each translator builds its own cache of a game's converted shaders (the small programs that draw effects). After switching, expect stutter the first time through each area. To compare the two fairly, play the same section twice on each with the overlay on, and compare the FPS on the second pass.
-
-## DXMetal Settings app
-
-A small Mac app that does the same as the scripts, with switches instead of arguments. It shows whether Steam is running and which game is running, and has:
-
-- **Install**, while DXMetal isn't installed yet. It runs `setup.sh`, installing Rosetta 2 first if it's missing, which asks for your password.
-- A switch for each of the four settings, saved as soon as you change them. Steam only reads them when it starts, so they're locked while it runs.
-- **Start Steam**, or **Quit Steam** while it's running. If a game is running, it asks first, because unsaved progress would be lost.
-
-Settings are saved in `DXMetal.app` itself, so double-clicking `~/Games/DXMetal.app` uses them too.
-
-**Getting it:** download `DXMetal-Settings-<version>.dmg` from the [latest release](https://github.com/rhas1/DXMetal/releases/latest), open it, and drag **DXMetal Settings** onto **Applications**. It runs on any Apple Silicon Mac with macOS 14 or newer, and holds no accounts or personal details: just the program, its icon and the scripts. To check the download, run `shasum -a 256` on it and compare the result with the SHA-256 in the release notes.
-
-**The first time you open a downloaded copy,** macOS blocks it, because it isn't signed with a paid Apple developer account. Try to open it, then go to System Settings → Privacy & Security and click **Open Anyway**.
-
-**Building it yourself** needs Apple's free Command Line Tools (`xcode-select --install`), not the full Xcode:
-
-```
-zsh app/build.sh
-```
-
-This creates `app/build/DXMetal Settings.app`, and a disk image of it for sending to another Mac. The scripts are bundled inside the app, so build it again after changing them.
+Settings can only change while Steam is closed. To switch in one step: `./scripts/close-wine.sh && ./scripts/run-steam.sh 0 1 0 1`
 
 ## Compatibility
 
 Each game is different, so check [Tested games](#tested-games) or just try it. In general:
 
-- **DirectX 11 games** work with either translator. Try D3DMetal first, and DXMT if you want to compare speed or D3DMetal has problems.
-- **DirectX 12 games** need D3DMetal (second argument `0`), because DXMT only handles DirectX 10 and 11.
-- **32-bit DirectX 10 or 11 games** need DXMT (second argument `1`), because D3DMetal only supports 64-bit games.
-- **Older DirectX 9 games** are handled by the wrapper's own DirectX 9 translator (D9VK, via Vulkan), which is switched on by default. They haven't been tested with these scripts.
+- **DirectX 11 games** work with either translator. DXMT is the default; try D3DMetal if a game has problems.
+- **DirectX 12 games** need D3DMetal, because DXMT only handles DirectX 10 and 11.
+- **32-bit DirectX 10 or 11 games** need DXMT, because D3DMetal only supports 64-bit games.
+- **Older DirectX 9 games** are handled by the wrapper's own DirectX 9 translator (D9VK, via Vulkan), which is switched on by default. They haven't been tested with Vapor.
 - **Games whose anti-cheat doesn't support Wine** usually won't run. This is common in competitive online games.
 
 `./scripts/status.sh` shows which translator a running game is actually using.
@@ -141,7 +156,7 @@ Tested another game? Add a row with the translator you used, and anything worth 
 - **Cap the frame rate** at your screen's refresh rate: 60 on most MacBooks. Anything higher only produces extra heat.
 - **VSync off** makes the controls feel more responsive. Turn it on if you see tearing, a horizontal split line across the picture when the camera turns fast.
 - **Keep resolution scale at 100%.** Games already run below Retina resolution by default, so only lower it as a last resort.
-- **For a sharper picture without the cost of Retina,** try MetalFX upscaling with DXMT: `./scripts/run-steam.sh 0 1 0 1`. If a game has its own FSR or DLSS option, you can also try that.
+- **For a sharper picture without the cost of Retina,** turn on MetalFX upscaling with DXMT. If a game has its own FSR or DLSS option, you can also try that.
 - **Start with High quality.** If the FPS dips, lower shadows and effects first.
 - **On a MacBook Air:** it has no fan, so if the FPS starts swinging after 20–30 minutes, cap the frame rate at 30. A steady 30 feels better than a jumpy 40–55. Keep the Mac plugged in, with Low Power Mode off.
 
@@ -149,74 +164,39 @@ Tested another game? Add a row with the translator you used, and anything worth 
 
 Online play works as it does on Windows: friends, invites and matchmaking go through Steam and the game as usual, and players on Windows PCs see the Mac as just another player. 5 GHz Wi-Fi or Ethernet helps. Turn off any VPN.
 
-## Files
-
-```
-dxmetal/
-├── README.md
-├── CHANGELOG.md
-├── LICENSE
-├── .gitignore
-├── scripts/
-│   ├── setup.sh
-│   ├── run-steam.sh
-│   ├── status.sh
-│   ├── close-wine.sh
-│   ├── uninstall.sh
-│   └── config.sh
-└── app/
-    ├── DXMetalSettings.swift
-    ├── build.sh
-    └── AppIcon.icns
-```
-
-| File | What it does |
-|---|---|
-| `scripts/setup.sh` | Installs everything (see [Setup](#setup-once-per-mac)). It's safe to run again: it skips finished steps, picks up where a failed run stopped, and keeps your settings. Steam must be closed. |
-| `scripts/run-steam.sh` | Starts Steam, optionally changing the resolution mode, translator, overlay and MetalFX upscaling first (see [Launch arguments](#launch-arguments)). |
-| `scripts/status.sh` | Shows the current settings, whether Steam/Wine is running, and which translator a running game is actually using. |
-| `scripts/close-wine.sh` | Quits everything running in Wine, including other Wine apps such as CrossOver. It asks before closing a running game, because unsaved progress is lost. It then asks Steam to exit properly, so Steam saves its state, and force-quits anything still running after 60 seconds. |
-| `scripts/uninstall.sh` | Deletes `~/Games/DXMetal.app`, **including Steam, all installed games and saved sign-ins**, after asking you to confirm. Steam must be closed. Run `setup.sh` afterwards to install again. |
-| `scripts/config.sh` | Shared settings and helpers used by the other scripts: where the app lives, the pinned download links and their checksums, and how settings are read and changed. You don't run it directly. |
-| `app/DXMetalSettings.swift` | The source code of the [DXMetal Settings app](#dxmetal-settings-app): one window that runs the scripts above. |
-| `app/build.sh` | Builds the app and a disk image of it into `app/build/`. |
-| `app/AppIcon.icns` | The app's icon. |
-| `.gitignore` | Keeps built apps and downloaded files out of git. |
-| `CHANGELOG.md` | What changed in each release. |
-| `LICENSE` | The MIT license for these scripts. |
-| `README.md` | This file. |
-
 ## Troubleshooting
 
 | Problem | Fix |
 |---|---|
-| A game won't start, or shows a black screen | Try the other translator: `./scripts/close-wine.sh && ./scripts/run-steam.sh 0 1` for DXMT, or `0 0` for D3DMetal. Also check [Compatibility](#compatibility). |
-| "Steam is running with ..." when changing settings | Run `./scripts/close-wine.sh`, then `./scripts/run-steam.sh` with the new arguments. |
-| `setup.sh` or `uninstall.sh` says "Quit Steam" | Run `./scripts/close-wine.sh` first. |
-| Setup fails partway | Run `zsh scripts/setup.sh` again: it picks up where it stopped. If it keeps failing, run `./scripts/uninstall.sh` and then `zsh scripts/setup.sh`, and save the Terminal output to troubleshoot with. |
-| "Checksum mismatch" during setup | A download isn't the expected file. Setup stops without using it. Try again later, or check for a newer version of these scripts. |
+| macOS says Vapor "can't be opened" or can't be checked for malware | Expected the first time. Go to System Settings → Privacy & Security and click **Open Anyway** (once). |
+| A game won't start, or shows a black screen | Try the other translator, and check [Compatibility](#compatibility). |
+| Glitches or crashes with DXMT | Switch to D3DMetal. If glitches started after an update, also try **More → Clear Caches…**. |
+| The picture, or Steam's window, looks wrong with MetalFX upscaling | Turn MetalFX upscaling off. |
+| Setup or an update fails partway | Try again: setup picks up where it stopped. If it keeps failing, choose **More → Copy Diagnostics** and include them, with the setup output, in a bug report. |
+| "Not enough free space" | Free up space and try again. Installing needs 5 GB free, and an update 3 GB. |
+| "Checksum mismatch" | A download isn't the expected file. Setup stops without using it. Try again later, or update Vapor. |
+| "An earlier update didn't finish" | See [An update stopped partway](#an-update-stopped-partway). |
 | Stutter the first time through an area | Normal: the translator is converting the game's shaders for the first time. It's smooth on the next visit. |
 | Stutter comes back after it was smooth | macOS deletes caches when disk space runs low. Keep 20 GB or more free. |
-| Glitches or crashes with DXMT | Switch back to D3DMetal: `./scripts/close-wine.sh && ./scripts/run-steam.sh 0 0 0 0` |
-| The picture, or Steam's window, looks wrong with MetalFX upscaling | Turn upscaling off: `./scripts/close-wine.sh && ./scripts/run-steam.sh 0 1 0 0` |
-| macOS says DXMetal Settings "can't be opened" or can't be checked for malware | Expected for a copy that arrived by AirDrop or download. Go to System Settings → Privacy & Security and click **Open Anyway** (once). |
 | Every controller press happens twice | In Steam, right-click the game → **Properties** → **Controller** → **Disable Steam Input**. |
 | `steamerrorreporter` appears briefly after launching a game | Harmless. It's a known warning from Steam's networking code under Wine, and the game keeps running. |
 
-## Updating Wine
+### An update stopped partway
 
-Steam and your games update themselves. Wine and the wrapper stay at the versions pinned in `scripts/config.sh` until you change them. If a future Steam update stops working, a newer Wine engine usually fixes it:
+An update moves your Windows drive (Steam, games and sign-ins) into a fresh wrapper in the hidden folder `~/Games/.vapor-update`, then swaps it into place. If anything fails, setup moves everything back. If the Mac lost power at exactly the wrong moment, setup refuses to continue and shows where the Windows drive is. To put it back:
 
-1. Find a newer release on [Sikarugir-App/Engines](https://github.com/Sikarugir-App/Engines/releases) (Wine) or [Sikarugir-App/Template](https://github.com/Sikarugir-App/Template/releases) (wrapper).
-2. In `scripts/config.sh`, update `ENGINE_URL` or `TEMPLATE_URL` **and** the matching `ENGINE_SHA256` or `TEMPLATE_SHA256`. GitHub lists each file's SHA-256 on the release page, or you can run `shasum -a 256` on the downloaded file.
-3. Rebuild: `./scripts/close-wine.sh`, then `./scripts/uninstall.sh`, then `zsh scripts/setup.sh`. This removes installed games, so they download again, and you sign in to Steam and any game accounts again.
+1. In Finder, choose **Go → Go to Folder…** and open `~/Games/.vapor-update`. It contains `new.app` and maybe `old.app`.
+2. If `~/Games/Vapor Steam.app` is missing, move `old.app` back to `~/Games` and rename it **Vapor Steam** (or **DXMetal**, if you were moving from DXMetal).
+3. Right-click the app with the Windows drive → **Show Package Contents** → **Contents → SharedSupport**, and move the `prefix` folder into the same place in your Vapor Steam (or DXMetal) app.
+4. Delete `~/Games/.vapor-update`, then open Vapor and run the update again.
 
 ## Privacy and security
 
-- **Never share or upload your `DXMetal.app`.** It contains your Steam and game sign-ins, cookies and saves. To set up another Mac, copy this folder (or the DXMetal Settings app) to it and install there, rather than copying `DXMetal.app`. Setup makes it readable only by your Mac account.
+- **Never share or upload `Vapor Steam.app`.** It contains your Steam and game sign-ins, cookies and saves. To set up another Mac, install Vapor there instead. Setup makes it readable only by your Mac account.
+- **Vapor collects nothing.** It contains no accounts, keys or tracking. It only contacts GitHub, to check for and download its own updates, and setup downloads only from GitHub (the wrapper and Wine, checked against pinned checksums) and Valve (the Steam installer).
 - **Wine isn't a sandbox.** Windows programs run with the same access to your files as any app you run, and Wine shows them your whole Mac as drive `Z:`. Only install games and mods from sources you trust.
 - **If macOS asks whether "wine" or "wineserver" may accept incoming network connections,** you can choose Deny. Online play usually works without it; allow it only if a game can't host or join sessions.
-- These scripts and the app contain no accounts, keys or personal details. They only download from GitHub (the wrapper and Wine, checked against pinned checksums) and Valve (the Steam installer).
+- To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## How it works
 
@@ -225,7 +205,7 @@ Steam and your games update themselves. Wine and the wrapper stay at the version
 │ Windows game (unchanged)                     │
 ├──────────────────────────────────────────────┤
 │ Wine 11              Windows → macOS         │  files, windows, input, sound, network
-│ D3DMetal or DXMT     DirectX → Metal         │  graphics
+│ DXMT or D3DMetal     DirectX → Metal         │  graphics
 ├──────────────────────────────────────────────┤
 │ Rosetta 2            Intel → Apple Silicon   │  CPU instructions
 ├──────────────────────────────────────────────┤
@@ -233,25 +213,67 @@ Steam and your games update themselves. Wine and the wrapper stay at the version
 └──────────────────────────────────────────────┘
 ```
 
-Neither Steam nor your games are modified. Rosetta 2 translates their Intel code for Apple Silicon. Wine provides the Windows system functions they call, using macOS underneath. D3DMetal or DXMT turns their DirectX graphics into Metal. To other players, the Mac is just another Windows PC.
+Neither Steam nor your games are modified. Rosetta 2 translates their Intel code for Apple Silicon. Wine provides the Windows system functions they call, using macOS underneath. DXMT or D3DMetal turns their DirectX graphics into Metal. To other players, the Mac is just another Windows PC.
 
 ### Where things live
 
-- `~/Games/DXMetal.app` holds everything:
-  - `Contents/SharedSupport/prefix` is the Windows side: Wine's registry, and the C: drive with Steam and your games. `Contents/drive_c` is a shortcut to that C: drive.
-  - `Contents/Info.plist` stores the wrapper's settings. To apply MetalFX, DXMetal keeps one line in its "CLI Custom Commands" setting; anything else you add there is kept.
+- `~/Games/Vapor Steam.app` holds everything:
+  - `Contents/SharedSupport/prefix` is the Windows drive: Wine's registry, and the C: drive with Steam and your games. `Contents/drive_c` is a shortcut to that C: drive. This is the only part an update keeps; everything else is replaced.
+  - `Contents/Info.plist` stores the wrapper's settings, and which versions built it. To apply MetalFX, Vapor keeps one line in its "CLI Custom Commands" setting; anything else you add there is kept, including through updates.
 - The shader caches are in the Mac's cache folder: run `open $(getconf DARWIN_USER_CACHE_DIR)` and look in `d3dm/` (D3DMetal) and `dxmt/` (DXMT), with one folder per game.
-- **Keeping the app on an external drive:** before running setup, edit the `APP=` line near the top of `scripts/config.sh`, replacing `$HOME/Games/DXMetal.app` with something like `/Volumes/GameSSD/DXMetal.app`. The drive must be formatted as APFS.
+- **Keeping it on an external drive:** before installing, edit the `APP=` line near the top of `scripts/config.sh`, replacing `$HOME/Games/Vapor Steam.app` with something like `/Volumes/GameSSD/Vapor Steam.app`, and install from Terminal. The drive must be formatted as APFS.
+
+## Files
+
+```
+Vapor/
+├── README.md
+├── CHANGELOG.md
+├── SECURITY.md
+├── LICENSE
+├── scripts/      setup.sh, run-steam.sh, status.sh, close-wine.sh, clear-caches.sh,
+│                 diagnostics.sh, uninstall.sh, config.sh
+├── app/          Vapor.swift, update-app.sh, build.sh, AppIcon.icns
+├── tools/        update-pins.sh, release-notes.sh
+└── .github/      workflows/checks.yml, release.yml, update-pins.yml
+```
+
+| File | What it does |
+|---|---|
+| `scripts/setup.sh` | Installs Vapor Steam, updates it (keeping Steam, games and settings), or moves a DXMetal install. Safe to run again: it skips finished steps. Steam must be closed. |
+| `scripts/run-steam.sh` | Starts Steam, or shows its window, optionally changing the settings first (see [Launch arguments](#launch-arguments)). |
+| `scripts/status.sh` | Shows the settings, whether an update is ready, whether Steam/Wine is running, and which translator a running game uses. |
+| `scripts/close-wine.sh` | Quits everything running in Wine, including other Wine apps such as CrossOver. It asks before closing a running game, because unsaved progress is lost. It then asks Steam to exit properly, so Steam saves its state, and force-quits anything still running after 60 seconds. |
+| `scripts/clear-caches.sh` | Deletes the shader caches, after asking you to confirm. |
+| `scripts/diagnostics.sh` | Prints versions, settings and status for a bug report, without names, file paths or accounts. |
+| `scripts/uninstall.sh` | Deletes Vapor Steam (and any DXMetal install), **including Steam, all installed games and saved sign-ins**, plus the shader caches, after asking you to confirm. |
+| `scripts/config.sh` | Shared settings and helpers: Vapor's version, where the install lives, the pinned download links and their checksums, and how settings are read and changed. |
+| `app/Vapor.swift` | The Vapor app's source code: one window that runs the scripts above, which are bundled inside it. |
+| `app/update-app.sh` | How the app checks for, downloads and installs new versions of itself. |
+| `app/build.sh` | Builds `Vapor.app` and its disk image into `app/build/`. Needs Apple's free Command Line Tools (`xcode-select --install`). |
+| `tools/update-pins.sh` | Points `config.sh` at the newest Sikarugir wrapper and Wine 11 builds, with fresh checksums. |
+| `tools/release-notes.sh` | Writes a release's notes from `CHANGELOG.md`. |
+| `.github/workflows/` | Checks each change, builds and publishes releases, and proposes newer wrapper and Wine versions daily. |
+
+## Releasing
+
+For maintainers:
+
+1. **New wrapper or Wine versions:** each day, the *Update pins* GitHub Action looks for newer Sikarugir releases. When it finds some, it opens a pull request that updates the pins in `scripts/config.sh`, raises the version and adds a `CHANGELOG.md` entry. You can also run `zsh tools/update-pins.sh --bump` yourself.
+2. **Test** the change on an install: run `zsh scripts/setup.sh`, start Steam and play a game.
+3. **Merge**, then push a tag for the new version, e.g. `git tag v2.0.1 && git push origin v2.0.1`. The *Release* Action checks the tag matches `VAPOR_VERSION` in `config.sh`, builds the app and disk image, and publishes the release with its checksum. Vapor offers the update to everyone within a day.
+
+For other changes, raise `VAPOR_VERSION` in `scripts/config.sh` and add a `CHANGELOG.md` entry yourself before tagging.
 
 ## Credits
 
-- [Sikarugir](https://github.com/Sikarugir-App): the wrapper template (1.0.24) and Wine 11 engine, which include D3DMetal and DXMT
+- [Sikarugir](https://github.com/Sikarugir-App): the wrapper template and Wine 11 engine, which include DXMT and D3DMetal
 - [DXMT](https://github.com/3Shain/dxmt) by 3Shain
 - D3DMetal, from Apple's [Game Porting Toolkit](https://developer.apple.com/games/)
 - [Wine](https://www.winehq.org), built from CrossOver's sources
 
 ## License
 
-The scripts in this repository are released under the [MIT License](LICENSE). The wrapper, Wine, D3DMetal and DXMT that setup downloads are separate projects under their own licenses, and they aren't included in this repository.
+The code in this repository is released under the [MIT License](LICENSE). The wrapper, Wine, D3DMetal and DXMT that setup downloads are separate projects under their own licenses, and they aren't included in this repository.
 
-Steam, Apple, and the games and publishers mentioned here are trademarks of their respective owners. This project isn't affiliated with any of them.
+Apple, Metal, Microsoft, DirectX, Windows, Valve, Steam, and the games and publishers mentioned here are trademarks of their respective owners. Vapor isn't affiliated with any of them.
