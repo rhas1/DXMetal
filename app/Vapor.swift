@@ -73,7 +73,7 @@ final class Model: ObservableObject {
 
     @Published var loaded = false
     @Published var installed = false
-    @Published var legacy = false          // a DXMetal install waiting to be moved
+    @Published var moveReady = false       // it's where an earlier version put it, which Spotlight searches
     @Published var updateReady = false     // newer wrapper and Wine versions are pinned
     @Published var wineRunning = false
     @Published var steamRunning = false
@@ -97,16 +97,15 @@ final class Model: ObservableObject {
     var pendingChanges: Bool { chosen != saved }
     var gameName: String? { game?.components(separatedBy: " on ").first }
 
-    // Prints one line per fact: "installed", "update", "settings 0101", "legacy", "wine", "steam",
+    // Prints one line per fact: "installed", "move", "update", "settings 0101", "wine", "steam",
     // "game Name.exe on DXMT".
     private static let stateQuery = """
         source "$1/config.sh"
         if [[ -x $LAUNCHER && -f $STEAM_DIR/steam.exe ]]; then
           echo installed
+          [[ $APP == $INSTALL_PATH ]] || echo move
           needs_update && echo update
           echo "settings $(get_retina)$(get_dxmt)$(get_hud)$(get_metalfx)"
-        elif [[ -x $LEGACY_APP/Contents/MacOS/wineskinlauncher ]]; then
-          echo legacy
         fi
         pgrep -x wineserver >/dev/null && echo wine
         pgrep -f 'steam\\.exe' >/dev/null && echo steam
@@ -141,8 +140,8 @@ final class Model: ObservableObject {
         zsh(["-c", Self.stateQuery, "zsh", scripts]) { [self] _, output in
             let lines = output.split(separator: "\n")
             installed = lines.contains("installed")
+            moveReady = lines.contains("move")
             updateReady = lines.contains("update")
-            legacy = lines.contains("legacy")
             wineRunning = lines.contains("wine")
             steamRunning = lines.contains("steam")
             game = lines.first { $0.hasPrefix("game ") }.map { String($0.dropFirst(5)) }
@@ -205,13 +204,14 @@ final class Model: ObservableObject {
 
     // MARK: Install, update, clear caches, uninstall
 
-    /// Installs Vapor Steam, updates it, or moves a DXMetal install over: setup.sh does whichever is needed.
+    /// Installs Vapor Steam, moves it from where an earlier version put it, or updates it: setup.sh
+    /// does whichever is needed.
     func runSetup() {
-        let (label, done) = installed
-            ? ("Updating…", "Updated. Steam, your games and settings are as you left them.")
-            : legacy
-                ? ("Moving to Vapor…", "Moved from DXMetal. Steam, your games and settings are as you left them.")
-                : ("Installing…", "Installed. Start Steam and sign in to your Steam account.")
+        let (label, done) = !installed
+            ? ("Installing…", "Installed. Start Steam and sign in to your Steam account.")
+            : moveReady
+                ? ("Moving…", "Moved. Only Vapor shows up in Spotlight now, and Steam, your games and settings are as you left them.")
+                : ("Updating…", "Updated. Steam, your games and settings are as you left them.")
         busy = label
         working = true
         message = ""
@@ -248,7 +248,7 @@ final class Model: ObservableObject {
     }
 
     func askUninstall() {
-        sizeOf("\"$APP\" \"$LEGACY_APP\" \"${CACHE_DIRS[@]}\"") { [self] size in
+        sizeOf("\"$INSTALL_PATH\" \"${OLD_APPS[@]}\" \"${CACHE_DIRS[@]}\"") { [self] size in
             confirmation = Confirmation(
                 title: "Uninstall Vapor Steam?",
                 message: "This deletes \(size): Steam, all installed games, your Steam and game sign-ins, any saves stored only on this Mac, and the shader caches. Saves in Steam Cloud stay online. This can't be undone.",
@@ -433,7 +433,14 @@ struct ContentView: View {
             if !model.loaded {
                 ProgressView().frame(maxWidth: .infinity).padding(40)
             } else if model.installed {
-                if model.updateReady {
+                if model.moveReady {
+                    banner(model.wineRunning
+                           ? "Vapor Steam can move to a hidden folder, so only Vapor shows up in Spotlight. Quit Steam to move it."
+                           : "Vapor Steam can move to a hidden folder, so only Vapor shows up in Spotlight. Steam, your games and settings stay.",
+                           button: "Move", enabled: model.busy == nil && !model.wineRunning) {
+                        model.runSetup()
+                    }
+                } else if model.updateReady {
                     banner(model.wineRunning
                            ? "An update for Wine and the translators is ready. Quit Steam to install it."
                            : "An update for Wine and the translators is ready. Steam, your games and settings stay.",
@@ -486,7 +493,7 @@ struct ContentView: View {
 
     private var status: String {
         if !model.loaded { return "Checking…" }
-        if !model.installed { return model.legacy ? "Found a DXMetal install" : "Vapor Steam isn't installed" }
+        if !model.installed { return "Vapor Steam isn't installed" }
         if model.steamRunning { return "Steam is running" }
         if model.wineRunning { return "Wine is running" }
         return "Steam is closed"
@@ -540,19 +547,11 @@ struct ContentView: View {
 
     private var installer: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if model.legacy {
-                Text("Vapor found an install from DXMetal, Vapor's previous name.")
-                Text("Moving it keeps Steam, your games, sign-ins and settings. Only the wrapper and Wine download again (about 250 MB).")
-                    .font(.callout)
-                    .foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else {
-                Text("Install Vapor Steam to play Windows games from Steam on this Mac.")
-                Text("It downloads Wine and Windows Steam, and takes a few minutes. Allow 5 GB of space, plus your games. If Rosetta 2 is missing, it's installed too, which accepts Apple's Rosetta license and asks for your password.")
-                    .font(.callout)
-                    .foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            Text("Install Vapor Steam to play Windows games from Steam on this Mac.")
+            Text("It downloads Wine and Windows Steam, and takes a few minutes. Allow 5 GB of space, plus your games. If Rosetta 2 is missing, it's installed too, which accepts Apple's Rosetta license and asks for your password.")
+                .font(.callout)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             if !model.message.isEmpty { messageView }
         }
         .padding(20)
@@ -593,7 +592,7 @@ struct ContentView: View {
                 Button("Copy Diagnostics") { model.copyDiagnostics() }
                 Divider()
                 Button("Uninstall Vapor Steam…") { model.askUninstall() }
-                    .disabled(!(model.installed || model.legacy) || model.wineRunning)
+                    .disabled(!model.installed || model.wineRunning)
                 Divider()
                 Button("Vapor on GitHub") { NSWorkspace.shared.open(URL(string: "https://github.com/rhas1/Vapor")!) }
             }
@@ -604,7 +603,7 @@ struct ContentView: View {
             if !model.loaded {
                 EmptyView()
             } else if !model.installed {
-                Button(model.legacy ? "Move to Vapor" : "Install") { model.runSetup() }
+                Button("Install") { model.runSetup() }
                     .keyboardShortcut(.defaultAction)
             } else if model.wineRunning {
                 Button("Show Steam") { model.showSteam() }

@@ -5,12 +5,19 @@ PATH=/usr/bin:/bin:/usr/sbin:/sbin
 
 VAPOR_VERSION=2.0.0  # this release; app/build.sh numbers the app with it
 
-# Where Vapor Steam lives: the app that holds Wine, the translators and the Windows C: drive
-# (Steam and your games). To use an external APFS drive, change the default path below before
-# running setup.sh.
-APP="${APP:-$HOME/Games/Vapor Steam.app}"
-# Where DXMetal, Vapor's previous name, installed it. setup.sh moves an install from there.
-LEGACY_APP="${LEGACY_APP:-$HOME/Games/DXMetal.app}"
+# Where Vapor Steam goes: the app that holds Wine, the translators and the Windows C: drive (Steam
+# and your games). Spotlight skips folders whose names end in .noindex, so searching shows only the
+# Vapor app. To use an external APFS drive, change the default path below before running setup.sh.
+INSTALL_PATH="${INSTALL_PATH:-$HOME/Library/Application Support/Vapor.noindex/Vapor Steam.app}"
+# Where earlier versions put it: Vapor 2.0, and DXMetal (Vapor's previous name). Until setup.sh
+# moves an install from there, the scripts use it where it is.
+OLD_APPS=("$HOME/Games/Vapor Steam.app" "$HOME/Games/DXMetal.app")
+APP=$INSTALL_PATH
+if [[ ! -e $APP ]]; then
+  for place in "${OLD_APPS[@]}"; do
+    if [[ -x $place/Contents/MacOS/wineskinlauncher ]]; then APP=$place; break; fi
+  done
+fi
 
 # Pinned Sikarugir wrapper template and Wine 11 engine (built from CrossOver sources; the template
 # ships the D3DMetal and DXMT translators). tools/update-pins.sh moves these to newer releases; when
@@ -63,26 +70,30 @@ fetch() {
   [[ $(shasum -a 256 "$2" | cut -d' ' -f1) == "$3" ]] || { echo "Checksum mismatch for ${1:t}; not using it."; exit 1; }
 }
 
+# Sets value $2 under key $1 in Wine's HKEY_CURRENT_USER registry to the string $3, e.g.
+# reg_set 'Software\Wine\Mac Driver' RetinaMode y. The registry is a text file that Wine only
+# loads and saves while running, so this edits it directly (Wine must not be running).
+reg_set() {
+  local reg="$PREFIX_DIR/user.reg"
+  KEY="[${1//\\/\\\\}]" NAME="\"$2\"=" LINE="\"$2\"=\"$3\"" awk -v now="$(date +%s)" '
+    index($0, ENVIRON["KEY"]) == 1 { print; s = found = 1; next }
+    s && index($0, ENVIRON["NAME"]) == 1 { next }
+    s && (/^$/ || /^\[/) { print ENVIRON["LINE"]; s = 0 }
+    { print }
+    END {
+      if (s) print ENVIRON["LINE"]
+      if (!found) printf "\n%s %s\n%s\n", ENVIRON["KEY"], now, ENVIRON["LINE"]
+    }' "$reg" > "$reg.tmp" && mv "$reg.tmp" "$reg"
+}
+
 # Resolution mode: 1 = full Retina resolution, 0 = scaled (faster). Stored as RetinaMode under
-# HKCU\Software\Wine\Mac Driver, which Wine reads at startup. The registry is a text file that
-# Wine only loads/saves while running, so we edit it directly (Wine must not be running).
+# HKCU\Software\Wine\Mac Driver, which Wine reads at startup.
 get_retina() {
   [[ -f "$PREFIX_DIR/user.reg" ]] || { echo 0; return; }
   awk '/^\[Software\\\\Wine\\\\Mac Driver\]/ {s=1; next} /^\[/ {s=0} s && /^"RetinaMode"="[yYtT1]/ {r=1} END {print r+0}' \
     "$PREFIX_DIR/user.reg"
 }
-set_retina() {
-  local reg="$PREFIX_DIR/user.reg"
-  awk -v val="$([[ $1 == 1 ]] && echo y || echo n)" -v now="$(date +%s)" '
-    /^\[Software\\\\Wine\\\\Mac Driver\]/ { print; s = found = 1; next }
-    s && /^"RetinaMode"=/ { next }
-    s && (/^$/ || /^\[/) { print "\"RetinaMode\"=\"" val "\""; s = 0 }
-    { print }
-    END {
-      if (s) print "\"RetinaMode\"=\"" val "\""
-      if (!found) printf "\n[Software\\\\Wine\\\\Mac Driver] %s\n\"RetinaMode\"=\"%s\"\n", now, val
-    }' "$reg" > "$reg.tmp" && mv "$reg.tmp" "$reg"
-}
+set_retina() { reg_set 'Software\Wine\Mac Driver' RetinaMode "$([[ $1 == 1 ]] && echo y || echo n)"; }
 
 # Renderer: 1 = DXMT, 0 = D3DMetal (the wrapper's D3DMETAL flag is the inverse). Read by Steam at startup.
 get_dxmt() { echo $(( 1 - $(plutil -extract D3DMETAL raw "$PLIST") )); }
