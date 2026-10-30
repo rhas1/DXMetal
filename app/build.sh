@@ -1,30 +1,31 @@
 #!/bin/zsh
-# Builds "DXMetal Settings.app" and a disk image of it into app/build. Building needs Apple's Command
-# Line Tools (xcode-select --install); the finished app runs on any Apple Silicon Mac without them.
+# Builds Vapor.app and a disk image of it into app/build. Building needs Apple's Command Line
+# Tools (xcode-select --install); the finished app runs on any Apple Silicon Mac without them.
 set -euo pipefail
-version=1.0.0  # released as tag v1.0.0
 here=${0:A:h}
+version=$(sed -n 's/^VAPOR_VERSION=\([0-9.]*\).*/\1/p' "$here/../scripts/config.sh")
 out="$here/build"
-app="$out/DXMetal Settings.app"
-dmg="$out/DXMetal-Settings-$version.dmg"
+app="$out/Vapor.app"
+dmg="$out/Vapor-$version.dmg"
 
 command -v swiftc >/dev/null || { echo "This needs Apple's Command Line Tools: run xcode-select --install"; exit 1; }
 rm -rf "$out"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources/scripts"
 swiftc -O -swift-version 5 -parse-as-library -target arm64-apple-macos14.0 \
-  -o "$app/Contents/MacOS/DXMetal Settings" "$here/DXMetalSettings.swift"
-# The app runs the same scripts as the command line.
-cp "$here"/../scripts/{config,setup,run-steam,close-wine}.sh "$app/Contents/Resources/scripts/"
+  -o "$app/Contents/MacOS/Vapor" "$here/Vapor.swift"
+# The app runs the same scripts as the command line, plus its own updater.
+cp "$here"/../scripts/{config,setup,run-steam,close-wine,uninstall,clear-caches,diagnostics}.sh \
+  "$here/update-app.sh" "$app/Contents/Resources/scripts/"
 cp "$here/AppIcon.icns" "$app/Contents/Resources/"
 cat > "$app/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>DXMetal Settings</string>
-  <key>CFBundleDisplayName</key><string>DXMetal Settings</string>
-  <key>CFBundleExecutable</key><string>DXMetal Settings</string>
-  <key>CFBundleIdentifier</key><string>io.github.rhas1.dxmetal.settings</string>
+  <key>CFBundleName</key><string>Vapor</string>
+  <key>CFBundleDisplayName</key><string>Vapor</string>
+  <key>CFBundleExecutable</key><string>Vapor</string>
+  <key>CFBundleIdentifier</key><string>io.github.rhas1.vapor</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$version</string>
   <key>CFBundleVersion</key><string>$version</string>
@@ -46,9 +47,9 @@ codesign --force --sign - --options runtime "$app"
 # folder), which would also break the signature's strict check.
 stage=$(mktemp -d)
 trap 'rm -rf "$stage"' EXIT
-ditto --norsrc --noextattr "$app" "$stage/DXMetal Settings.app"
+ditto --norsrc --noextattr "$app" "$stage/Vapor.app"
 ln -s /Applications "$stage/Applications"
-hdiutil create -quiet -volname "DXMetal Settings $version" -srcfolder "$stage" -format UDZO -ov "$dmg"
+hdiutil create -quiet -volname "Vapor $version" -srcfolder "$stage" -format UDZO -ov "$dmg"
 
 echo "Built $app"
 echo "Disk image: $dmg"
