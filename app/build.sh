@@ -5,11 +5,14 @@ set -euo pipefail
 here=${0:A:h}
 version=$(sed -n 's/^VAPOR_VERSION=\([0-9.]*\).*/\1/p' "$here/../scripts/config.sh")
 out="$here/build"
-app="$out/Vapor.app"
-dmg="$out/Vapor-$version.dmg"
 
 command -v swiftc >/dev/null || { echo "This needs Apple's Command Line Tools: run xcode-select --install"; exit 1; }
-rm -rf "$out"
+# Build in a temporary folder, then copy the results to app/build: a synced folder (like Documents
+# in iCloud) adds Finder metadata to new files as they appear, and signing refuses files with it.
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+app="$work/Vapor.app"
+dmg="$work/Vapor-$version.dmg"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources/scripts"
 swiftc -O -swift-version 5 -parse-as-library -target arm64-apple-macos14.0 \
   -o "$app/Contents/MacOS/Vapor" "$here/Vapor.swift"
@@ -36,21 +39,28 @@ cat > "$app/Contents/Info.plist" <<EOF
 </dict>
 </plist>
 EOF
-# Apple Silicon only runs signed code, so sign it for this Mac ("ad hoc"); signing refuses files
-# that carry Finder metadata. It isn't notarized: a copy that arrives by download or AirDrop needs
-# approving once in Privacy & Security settings.
+# Apple Silicon only runs signed code, so sign it for this Mac ("ad hoc"), without the Finder
+# metadata that copying from a synced folder can bring along. It isn't notarized: a copy that
+# arrives by download or AirDrop needs approving once in Privacy & Security settings.
 xattr -cr "$app"
 codesign --force --sign - --options runtime "$app"
 
-# The disk image to publish or send to another Mac: the app, plus a shortcut to drag it onto
-# Applications. It leaves out file metadata that this Mac adds (for example in a synced Documents
-# folder), which would also break the signature's strict check.
-stage=$(mktemp -d)
-trap 'rm -rf "$stage"' EXIT
+# The disk image to publish or send to another Mac: the app, a shortcut to drag it onto
+# Applications, and the window's background and layout from app/dmg (tools/dmg-window.sh makes
+# them; Finder finds the background by the disk's name, so that stays "Vapor"). It leaves out file
+# metadata, which would also break the signature's strict check.
+stage="$work/disk"
+mkdir -p "$stage/.background"
 ditto --norsrc --noextattr "$app" "$stage/Vapor.app"
 ln -s /Applications "$stage/Applications"
-hdiutil create -quiet -volname "Vapor $version" -srcfolder "$stage" -format UDZO -ov "$dmg"
+cp -X "$here/dmg/background.tiff" "$stage/.background/"
+cp -X "$here/dmg/DS_Store" "$stage/.DS_Store"
+hdiutil create -quiet -volname Vapor -fs HFS+ -srcfolder "$stage" -format UDZO "$dmg"
 
-echo "Built $app"
-echo "Disk image: $dmg"
-echo "SHA-256: $(shasum -a 256 "$dmg" | cut -d' ' -f1)"
+rm -rf "$out"
+mkdir -p "$out"
+ditto "$app" "$out/Vapor.app"
+mv "$dmg" "$out/"
+echo "Built $out/Vapor.app"
+echo "Disk image: $out/${dmg:t}"
+echo "SHA-256: $(shasum -a 256 "$out/${dmg:t}" | cut -d' ' -f1)"
