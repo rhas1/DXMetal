@@ -14,7 +14,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Check the scripts' syntax
-        run: for f in scripts/*.sh app/*.sh tools/*.sh; do zsh -n "$f"; done
+        run: |
+          for f in scripts/*.sh app/*.sh tools/*.sh; do zsh -n "$f"; done
+          swiftc -typecheck tools/dmg-background.swift
+          python3 -c 'import ast, sys; ast.parse(open(sys.argv[1]).read())' tools/clean-dsstore.py
       - name: Build the app and disk image
         run: zsh app/build.sh
       - name: Check the build

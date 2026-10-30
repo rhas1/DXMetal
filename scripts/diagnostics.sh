@@ -11,13 +11,12 @@ echo "Rosetta 2: $(arch -x86_64 /usr/bin/true 2>/dev/null && echo installed || e
 if [[ -x $LAUNCHER ]]; then
   r="$APP/Contents/SharedSupport/renderer"
   echo "Installed: $(installed_components)"
+  [[ $APP == $INSTALL_PATH ]] || echo "Location: where an earlier version put it, not moved yet"
   echo "Pinned: $(pinned_components)"
   echo "Translators: DXMT $(cat "$r/dxmt/version" 2>/dev/null), D3DMetal" \
     "$(plutil -extract CFBundleShortVersionString raw "$r/d3dmetal/external/D3DMetal.framework/Versions/A/Resources/Info.plist" 2>/dev/null)"
   echo "Settings: $(describe_settings)"
   echo "Steam installed: $([[ -f $STEAM_DIR/steam.exe ]] && echo yes || echo no)"
-elif [[ -x $LEGACY_APP/Contents/MacOS/wineskinlauncher ]]; then
-  echo "Not installed; a DXMetal install is waiting to be moved"
 else
   echo "Not installed"
 fi

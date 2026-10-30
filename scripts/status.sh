@@ -5,14 +5,12 @@ set -euo pipefail
 source "${0:A:h}/config.sh"
 
 if [[ ! -x "$LAUNCHER" ]]; then
-  if [[ -x $LEGACY_APP/Contents/MacOS/wineskinlauncher ]]; then
-    echo "Found a DXMetal install: run ${0:h}/setup.sh to move it to Vapor, keeping Steam and your games."
-  else
-    echo "Not installed yet; run ${0:h}/setup.sh first."
-  fi
+  echo "Not installed yet; run ${0:h}/setup.sh first."
   exit 0
 fi
 
+[[ $APP == $INSTALL_PATH ]] ||
+  echo "Vapor Steam is in ${APP:h}, where Spotlight lists it: run ${0:h}/setup.sh to move it. Steam, your games and settings stay."
 echo "Settings: $(describe_settings)"
 needs_update && echo "Update ready: run ${0:h}/setup.sh. Steam, your games and settings stay."
 pgrep -x wineserver >/dev/null && echo "Steam/Wine: running" || echo "Steam/Wine: not running"
