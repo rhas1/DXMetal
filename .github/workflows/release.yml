@@ -1,0 +1,33 @@
+name: Release
+
+# Pushing a version tag (v2.0.1) builds the app and disk image from that commit and publishes them.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the tag matches VAPOR_VERSION
+        run: |
+          version=$(sed -n 's/^VAPOR_VERSION=\([0-9.]*\).*/\1/p' scripts/config.sh)
+          [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "Tag $GITHUB_REF_NAME doesn't match VAPOR_VERSION $version"; exit 1; }
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - name: Build the app and disk image
+        run: zsh app/build.sh
+      - name: Write the checksum and release notes
+        working-directory: app/build
+        run: |
+          shasum -a 256 "Vapor-$VERSION.dmg" > SHA256SUMS
+          zsh ../../tools/release-notes.sh "$VERSION" "$(cut -d' ' -f1 SHA256SUMS)" > notes.md
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" "app/build/Vapor-$VERSION.dmg" app/build/SHA256SUMS
+          --title "Vapor $VERSION" --notes-file app/build/notes.md --verify-tag

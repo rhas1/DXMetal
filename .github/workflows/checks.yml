@@ -1,0 +1,23 @@
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the scripts' syntax
+        run: for f in scripts/*.sh app/*.sh tools/*.sh; do zsh -n "$f"; done
+      - name: Build the app and disk image
+        run: zsh app/build.sh
+      - name: Check the build
+        run: |
+          codesign --verify --strict --deep app/build/Vapor.app
+          hdiutil verify app/build/Vapor-*.dmg

@@ -1,0 +1,40 @@
+name: Update pins
+
+# Daily: looks for newer Sikarugir wrapper and Wine builds, and proposes them in a pull request with
+# the version raised and a CHANGELOG entry, ready to release once tested.
+on:
+  schedule:
+    - cron: '23 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  pins:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Look for newer releases
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: zsh tools/update-pins.sh --bump
+      - name: Propose them in a pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet; then echo "Everything is up to date."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c pins/update
+          git commit -qam "Update the pinned wrapper and Wine versions"
+          git push -f origin pins/update
+          if [ "$(gh pr view pins/update --json state -q .state 2>/dev/null)" != OPEN ]; then
+            gh pr create --head pins/update --title "Update the pinned wrapper and Wine versions" --body "$(cat <<'EOF'
+          tools/update-pins.sh found newer Sikarugir releases, and raised the version with a CHANGELOG entry.
+
+          Before merging, test them: run `zsh scripts/setup.sh` (or Vapor → Update) on an install, then start Steam and a game. After merging, push the new version tag (for example `git tag v2.0.1 && git push origin v2.0.1`) to publish the release.
+          EOF
+          )"
+          fi
