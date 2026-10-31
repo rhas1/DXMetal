@@ -3,7 +3,7 @@
 # Use macOS's own tools, not same-named ones that Homebrew or others put earlier in PATH.
 PATH=/usr/bin:/bin:/usr/sbin:/sbin
 
-VAPOR_VERSION=2.1.0  # this release; app/build.sh numbers the app with it
+VAPOR_VERSION=2.2.0  # this release; app/build.sh numbers the app with it
 
 # Where Vapor Steam goes: the app that holds Wine, the translators and the Windows C: drive (Steam
 # and your games). Spotlight skips folders whose names end in .noindex, so searching shows only the
@@ -112,17 +112,52 @@ get_metalfx() {
 set_metalfx() { set_opt VAPOR_METALFX integer "$1"; }
 metalfx_active() { (( $(get_metalfx) && $(get_dxmt) && ! $(get_retina) )); }
 
-# The wrapper runs its "CLI Custom Commands" setting before starting Wine, so exporting MetalFX's
-# variable there applies it however Steam is started, including a double-click on the app.
-apply_metalfx() {
-  local cmds nl=$'\n'
-  cmds=$(plutil -extract "CLI Custom Commands" raw "$PLIST" 2>/dev/null | grep -v DXMT_METALFX_SPATIAL_SWAPCHAIN || true)
+# Frame-rate limit in games: 0 = none, or 30 or 60 frames per second. DXMT needs a whole fraction
+# of the display's refresh rate, which 30 and 60 are for Mac screens (60 or 120 Hz). Stored in our
+# own Info.plist key.
+get_fps_limit() { plutil -extract VAPOR_FPS_LIMIT raw "$PLIST" 2>/dev/null || echo 0; }
+set_fps_limit() { set_opt VAPOR_FPS_LIMIT integer "$1"; }
+
+# The wrapper runs its "CLI Custom Commands" setting before starting Wine, so exporting the
+# translators' variables there applies them however Steam is started, including a double-click on
+# the app: MetalFX upscaling, and the frame-rate limit for each translator.
+apply_env() {
+  local cmds nl=$'\n' fps=$(get_fps_limit)
+  cmds=$(plutil -extract "CLI Custom Commands" raw "$PLIST" 2>/dev/null |
+    grep -vE 'DXMT_METALFX_SPATIAL_SWAPCHAIN|D3DM_MAX_FPS' || true)
   metalfx_active && cmds+="${cmds:+$nl}export DXMT_METALFX_SPATIAL_SWAPCHAIN=1"
+  (( fps )) && cmds+="${cmds:+$nl}export D3DM_MAX_FPS=$fps DXMT_CONFIG='d3d11.preferredMaxFrameRate=$fps;'"
   set_opt "CLI Custom Commands" string "$cmds"
 }
 
-# Saves the settings RETINA DXMT HUD METALFX, each 0 or 1. Steam only reads them when it starts,
-# so Wine must not be running.
+# Steam's in-game overlay (Shift+Tab): 1 = on, 0 = off (the default). Opening it can freeze games
+# under Wine (see Troubleshooting in the README). Stored in our own Info.plist key, and copied into
+# Steam's settings by apply_overlay.
+get_overlay() { plutil -extract VAPOR_STEAM_OVERLAY raw "$PLIST" 2>/dev/null || echo 0; }
+set_overlay() { set_opt VAPOR_STEAM_OVERLAY integer "$1"; }
+
+# Sets Steam's "Enable the Steam Overlay while in-game" for each account that has signed in here:
+# "EnableGameOverlay" in the "system" section of its localconfig.vdf. Steam reads that file when it
+# starts and rewrites it when it quits, so Steam must not be running. An account that signs in for
+# the first time gets it the next time Steam starts from Vapor.
+apply_overlay() {
+  local file
+  for file in "$STEAM_DIR"/userdata/*/config/localconfig.vdf(N); do
+    LINE=$'\t\t"EnableGameOverlay"\t\t"'$(get_overlay)'"' awk '
+      /^[ \t]*\{[ \t]*$/ { depth++; if (depth == 2 && name == "\"system\"") inside = 1; print; next }
+      /^[ \t]*\}[ \t]*$/ {
+        if (inside && depth == 2 && !done) { print ENVIRON["LINE"]; done = 1 }
+        if (depth == 1 && !done) { print "\t\"system\"\n\t{\n" ENVIRON["LINE"] "\n\t}"; done = 1 }
+        if (depth == 2) inside = 0
+        depth--; print; next
+      }
+      inside && depth == 2 && $1 == "\"EnableGameOverlay\"" { if (!done) print ENVIRON["LINE"]; done = 1; next }
+      { name = $1; print }' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+  done
+}
+
+# Saves the settings RETINA DXMT HUD METALFX FPS OVERLAY: FPS is 0, 30 or 60, the others 0 or 1.
+# Steam only reads them when it starts, so Wine must not be running.
 save_settings() {
   if [[ $1 != $(get_retina) ]]; then
     set_retina $1
@@ -131,16 +166,21 @@ save_settings() {
   set_dxmt $2
   set_hud $3
   set_metalfx $4
-  apply_metalfx
+  set_fps_limit $5
+  set_overlay $6
+  apply_env
+  apply_overlay
 }
 
 describe_settings() {
-  local metalfx=off
+  local metalfx=off fps=$(get_fps_limit)
   (( $(get_metalfx) )) && { metalfx_active && metalfx=on || metalfx="on, but inactive (needs DXMT and scaled resolution)"; }
   echo "$( (( $(get_retina) )) && echo Retina || echo scaled) resolution," \
     "$( (( $(get_dxmt) )) && echo DXMT || echo D3DMetal)," \
     "HUD $( (( $(get_hud) )) && echo on || echo off)," \
-    "MetalFX $metalfx"
+    "MetalFX $metalfx," \
+    "frame rate limit $( (( fps )) && echo $fps || echo off)," \
+    "Steam overlay $( (( $(get_overlay) )) && echo on || echo off)"
 }
 
 # Lists running games (Wine processes drawing with DirectX, Vulkan or OpenGL) as "name on renderer".

@@ -49,7 +49,7 @@ zsh scripts/run-steam.sh
 
 ## Using Vapor
 
-Vapor's window shows whether Steam is running, which game is running, and four settings:
+Vapor's window shows whether Steam is running, which game is running, and six settings:
 
 | Setting | Choices |
 |---|---|
@@ -57,6 +57,8 @@ Vapor's window shows whether Steam is running, which game is running, and four s
 | Translator | **DXMT** (default): open source, for DirectX 10 and 11 games, and sometimes the faster one. **D3DMetal**: Apple's translator, for DirectX 11 and 12 games. |
 | FPS overlay | Apple's Metal performance overlay in games, showing the frame rate and frame timing |
 | MetalFX upscaling | Apple's MetalFX upscales each frame to twice its resolution, so games at scaled resolution look close to Retina-sharp at about the same speed. Works with DXMT at scaled resolution. Experimental. |
+| Frame rate limit | **Off** (default), **60** or **30** frames per second, for games without their own limit. 30 keeps a MacBook Air cooler and steadier. Works with both translators. |
+| Steam overlay | Steam's in-game overlay (Shift+Tab). **Off** by default, because opening it can freeze a game (see [Troubleshooting](#troubleshooting)). Vapor sets it in Steam's own settings each time it starts Steam. |
 
 - Changes are saved as soon as you make them. Steam only reads the settings when it starts, so they're **locked while Steam is running**: quit Steam to change them.
 - After changing the resolution, pick the resolution again in each game's display settings.
@@ -67,7 +69,7 @@ The **More** menu has:
 
 | Item | What it does |
 |---|---|
-| Check for Updates… | Looks for a new version of Vapor. See [Updates](#updates). |
+| Check for Updates… | Looks for a new version of Vapor. When there is one, this reads **Update to Vapor…** instead. See [Updates](#updates). |
 | Clear Caches… | Deletes the translators' shader caches, after asking Yes or No. Games rebuild them as you play, so expect some stutter the first time through each area. Useful if a game shows graphics glitches after an update. |
 | Copy Diagnostics | Copies versions, settings and status for a bug report. It contains no names, file paths or accounts. |
 | Uninstall Vapor Steam… | Deletes Vapor Steam, **including Steam, all installed games, your sign-ins and any saves stored only on this Mac**, plus the shader caches, after asking Yes or No. Then it offers to move Vapor itself to the Trash. Saves in Steam Cloud stay online. |
@@ -85,8 +87,8 @@ Each translator builds its own cache of a game's converted shaders (the small pr
 
 | What | How it updates |
 |---|---|
-| **Vapor** | Vapor checks GitHub once a day and shows **Update Vapor** when there's a new version. You can also choose **More → Check for Updates…**. It downloads the new version, checks it against the release's `SHA256SUMS`, replaces itself and restarts. |
-| **Wine, the wrapper and the translators** | New Vapor releases bring newer versions. When your install is older, Vapor shows **Update**: it builds a fresh wrapper and moves your Windows drive into it, so **Steam, your games, sign-ins and settings stay**. Only about 250 MB downloads. It takes a few minutes, mostly while macOS checks the new wrapper, as it does the first time any new app runs. From Terminal, `zsh scripts/setup.sh` does the same. |
+| **Vapor** | Each time Vapor opens, it checks GitHub, as soon as the Mac is online. When there's a new version, it shows **Update Vapor**, with a red dot on its Dock icon and on **More**. You can also choose **More → Check for Updates…**. It downloads the new version, checks it against the release's `SHA256SUMS`, replaces itself and restarts. |
+| **Wine, the wrapper and the translators** | New Vapor releases bring newer versions. When your install is older, Vapor shows **Update**, with a red dot on its Dock icon: it builds a fresh wrapper and moves your Windows drive into it, so **Steam, your games, sign-ins and settings stay**. Only about 250 MB downloads. It takes a few minutes, mostly while macOS checks the new wrapper, as it does the first time any new app runs. From Terminal, `zsh scripts/setup.sh` does the same. |
 | **Steam and your games** | They update themselves, as on Windows. |
 
 The translators come inside the Sikarugir wrapper, so an update brings new versions of D3DMetal, DXMT and DXVK together.
@@ -99,7 +101,7 @@ Run these from the folder. You can also `cd scripts` first and leave out the `sc
 |---|---|
 | Install, update, or move an install from where an earlier version put it | `zsh scripts/setup.sh` |
 | Start Steam with your current settings (or show its window) | `./scripts/run-steam.sh` |
-| Start Steam with different settings | `./scripts/run-steam.sh RETINA DXMT HUD METALFX`, e.g. `./scripts/run-steam.sh 0 1 0 1` (see below) |
+| Start Steam with different settings | `./scripts/run-steam.sh RETINA DXMT HUD METALFX FPS OVERLAY`, e.g. `./scripts/run-steam.sh 0 1 0 1 30` (see below) |
 | See the settings, whether an update is ready, and which translator a running game uses | `./scripts/status.sh` |
 | Quit Steam and Wine | Steam menu → **Exit**, or `./scripts/close-wine.sh` |
 | Clear the shader caches | `./scripts/clear-caches.sh` |
@@ -108,24 +110,27 @@ Run these from the folder. You can also `cd scripts` first and leave out the `sc
 
 ### Launch arguments
 
-`run-steam.sh` takes up to four arguments, each `0` or `1`. Any you leave off keep their current setting, so `./scripts/run-steam.sh` on its own changes nothing.
+`run-steam.sh` takes up to six arguments: `FPS` is `0`, `30` or `60`, and the others are each `0` or `1`. Any you leave off keep their current setting, so `./scripts/run-steam.sh` on its own changes nothing.
 
 ```
-./scripts/run-steam.sh RETINA DXMT HUD METALFX
+./scripts/run-steam.sh RETINA DXMT HUD METALFX FPS OVERLAY
 ```
 
 | Argument | `0` | `1` |
 |---|---|---|
 | `RETINA` (1st) | Scaled resolution | Retina resolution |
 | `DXMT` (2nd) | D3DMetal | DXMT |
-| `HUD` (3rd) | No overlay | FPS overlay |
+| `HUD` (3rd) | No FPS overlay | FPS overlay |
 | `METALFX` (4th) | No upscaling | MetalFX upscaling |
+| `FPS` (5th) | No frame rate limit | `30` or `60`: limit games to that many frames per second |
+| `OVERLAY` (6th) | Steam's in-game overlay off | Steam's in-game overlay on |
 
 | Command | Result |
 |---|---|
-| `./scripts/run-steam.sh 0 1 0 0` | Scaled resolution, DXMT, no overlay, no upscaling (the defaults) |
-| `./scripts/run-steam.sh 0 1 0 1` | Scaled resolution, DXMT, with MetalFX upscaling |
-| `./scripts/run-steam.sh 0 0 1` | Scaled resolution, D3DMetal, with the FPS overlay. MetalFX stays as it was. |
+| `./scripts/run-steam.sh 0 1 0 0 0 0` | Scaled resolution, DXMT, no FPS overlay, no upscaling, no frame rate limit, Steam's overlay off (the defaults) |
+| `./scripts/run-steam.sh 0 1 0 1` | Scaled resolution, DXMT, with MetalFX upscaling. The rest stays as it was. |
+| `./scripts/run-steam.sh 0 0 1` | Scaled resolution, D3DMetal, with the FPS overlay. The rest stays as it was. |
+| `./scripts/run-steam.sh 0 1 0 0 30` | DXMT at scaled resolution, limited to 30 frames per second |
 | `./scripts/run-steam.sh 1` | Retina resolution. The rest stays as it was. |
 
 Settings can only change while Steam is closed. To switch in one step: `./scripts/close-wine.sh && ./scripts/run-steam.sh 0 1 0 1`
@@ -146,23 +151,23 @@ Each game is different, so check [Tested games](#tested-games) or just try it. I
 
 | Game | Translator | Result | Notes |
 |---|---|---|---|
-| It Takes Two | D3DMetal and DXMT | Works | Tested with the free Friend's Pass on a MacBook Air M3 (16 GB) running macOS 27. The EA account sign-in works in the Steam overlay. A harmless Steam networking warning (`steamerrorreporter`) appears once at launch. |
+| It Takes Two | D3DMetal and DXMT | Works | Tested with the free Friend's Pass on a MacBook Air M3 (16 GB) running macOS 27. **Don't use the game's Invite friend button:** it opens the Steam overlay, which freezes the game, a known bug with Wine (see [Troubleshooting](#troubleshooting)). Vapor keeps the overlay off. Create the online session in the game, then invite your friend through Steam's Friends list. A harmless Steam networking warning (`steamerrorreporter`) appears once at launch. |
 
 Tested another game? Add a row with the translator you used, and anything worth knowing.
 
 ## Tips for smooth games
 
 - **Close other apps** while playing, especially on 8 GB Macs. macOS Game Mode, which normally does this for you, doesn't turn on for Windows games run through Wine.
-- **Cap the frame rate** at your screen's refresh rate: 60 on most MacBooks. Anything higher only produces extra heat.
+- **Cap the frame rate** at your screen's refresh rate: 60 on most MacBooks. Anything higher only produces extra heat. Use the game's own limit, or Vapor's **Frame rate limit** if it has none.
 - **VSync off** makes the controls feel more responsive. Turn it on if you see tearing, a horizontal split line across the picture when the camera turns fast.
 - **Keep resolution scale at 100%.** Games already run below Retina resolution by default, so only lower it as a last resort.
 - **For a sharper picture without the cost of Retina,** turn on MetalFX upscaling with DXMT. If a game has its own FSR or DLSS option, you can also try that.
 - **Start with High quality.** If the FPS dips, lower shadows and effects first.
-- **On a MacBook Air:** it has no fan, so if the FPS starts swinging after 20–30 minutes, cap the frame rate at 30. A steady 30 feels better than a jumpy 40–55. Keep the Mac plugged in, with Low Power Mode off.
+- **On a MacBook Air:** it has no fan, so if the FPS starts swinging after 20–30 minutes, set **Frame rate limit** to 30. A steady 30 feels better than a jumpy 40–55. Keep the Mac plugged in, with Low Power Mode off.
 
 ## Playing online
 
-Online play works as it does on Windows: friends, invites and matchmaking go through Steam and the game as usual, and players on Windows PCs see the Mac as just another player. 5 GHz Wi-Fi or Ethernet helps. Turn off any VPN.
+Online play works as it does on Windows: friends, invites and matchmaking go through Steam and the game as usual, and players on Windows PCs see the Mac as just another player. Invite friends through Steam's Friends list rather than a game's own invite button, which opens the Steam overlay and can freeze the game (see [Troubleshooting](#troubleshooting)). Vapor keeps the overlay off unless you turn it on. 5 GHz Wi-Fi or Ethernet helps. Turn off any VPN.
 
 ## Troubleshooting
 
@@ -178,6 +183,7 @@ Online play works as it does on Windows: friends, invites and matchmaking go thr
 | "An earlier update didn't finish" | See [An update stopped partway](#an-update-stopped-partway). |
 | Stutter the first time through an area | Normal: the translator is converting the game's shaders for the first time. It's smooth on the next visit. |
 | Stutter comes back after it was smooth | macOS deletes caches when disk space runs low. Keep 20 GB or more free. |
+| A game freezes when the Steam overlay opens, from Shift+Tab or a game's **Invite friend** button: the picture stops but the sound keeps playing | A known bug with Windows Steam's overlay under Wine, which CrossOver has too: Steam stops responding, and the game waits for it. It doesn't recover, so click **Quit Steam** in Vapor, which notices that Steam isn't responding and force-quits it within seconds. Vapor keeps the overlay off for this reason: if you turned on **Steam overlay** in Vapor, turn it off. To play with a friend, create the online session in the game, then invite them through Steam instead of pressing the game's invite button: in Steam's window, open **Friends & Chat**, right-click your friend and choose **Invite to Game**. |
 | Every controller press happens twice | In Steam, right-click the game → **Properties** → **Controller** → **Disable Steam Input**. |
 | `steamerrorreporter` appears briefly after launching a game | Harmless. It's a known warning from Steam's networking code under Wine, and the game keeps running. |
 | Spotlight shows **Vapor Steam** next to Vapor | Your install is where an earlier version put it. Open Vapor and click **Move**. |
@@ -221,7 +227,8 @@ Neither Steam nor your games are modified. Rosetta 2 translates their Intel code
 
 - `~/Library/Application Support/Vapor.noindex/Vapor Steam.app` holds everything. Spotlight doesn't search folders whose names end in `.noindex`, so it only finds the Vapor app. To see it in Finder, choose **Go → Go to Folder…** and paste the folder's path. Vapor 2.0 and DXMetal kept it in `~/Games`; Vapor offers to move it from there.
   - `Contents/SharedSupport/prefix` is the Windows drive: Wine's registry, and the C: drive with Steam and your games. `Contents/drive_c` is a shortcut to that C: drive. This is the only part an update keeps; everything else is replaced.
-  - `Contents/Info.plist` stores the wrapper's settings, and which versions built it. To apply MetalFX, Vapor keeps one line in its "CLI Custom Commands" setting; anything else you add there is kept, including through updates.
+  - `Contents/Info.plist` stores the wrapper's settings, and which versions built it. To apply MetalFX and the frame rate limit, Vapor keeps a line for each in its "CLI Custom Commands" setting; anything else you add there is kept, including through updates.
+  - Steam keeps each account's settings in `drive_c/Program Files (x86)/Steam/userdata/<account>/config/localconfig.vdf`. Vapor sets only the in-game overlay there, as `EnableGameOverlay`.
 - The shader caches are in the Mac's cache folder: run `open $(getconf DARWIN_USER_CACHE_DIR)` and look in `d3dm/` (D3DMetal) and `dxmt/` (DXMT), with one folder per game.
 - Vapor switches off Wine's menu builder (`winemenubuilder`), which would otherwise copy Windows shortcuts to the Mac's desktop as `.desktop` files whenever a program such as Steam's installer creates one.
 - **Keeping it on an external drive:** before installing, edit the `INSTALL_PATH=` line near the top of `scripts/config.sh`, replacing `$HOME/Library/Application Support/Vapor.noindex/Vapor Steam.app` with something like `/Volumes/GameSSD/Vapor.noindex/Vapor Steam.app`, and install from Terminal. The drive must be formatted as APFS.
@@ -248,7 +255,7 @@ Vapor/
 | `scripts/setup.sh` | Installs Vapor Steam, updates it (keeping Steam, games and settings), or moves an install from where an earlier version put it. Safe to run again: it skips finished steps. Steam must be closed. |
 | `scripts/run-steam.sh` | Starts Steam, or shows its window, optionally changing the settings first (see [Launch arguments](#launch-arguments)). |
 | `scripts/status.sh` | Shows the settings, whether an update is ready, whether Steam/Wine is running, and which translator a running game uses. |
-| `scripts/close-wine.sh` | Quits everything running in Wine, including other Wine apps such as CrossOver. It asks before closing a running game, because unsaved progress is lost. It then asks Steam to exit properly, so Steam saves its state, and force-quits anything still running after 60 seconds. |
+| `scripts/close-wine.sh` | Quits everything running in Wine, including other Wine apps such as CrossOver. It asks before closing a running game, because unsaved progress is lost. It then asks Steam to exit properly, so Steam saves its state, and force-quits anything still running after 60 seconds, or after 10 if Steam isn't responding. |
 | `scripts/clear-caches.sh` | Deletes the shader caches, after asking you to confirm. |
 | `scripts/diagnostics.sh` | Prints versions, settings and status for a bug report, without names, file paths or accounts. |
 | `scripts/uninstall.sh` | Deletes Vapor Steam (including any install where an earlier version put it), **including Steam, all installed games and saved sign-ins**, plus the shader caches, after asking you to confirm. |

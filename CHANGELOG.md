@@ -2,6 +2,21 @@
 
 Notable changes to Vapor, called DXMetal before 2.0.0. Version numbers follow [Semantic Versioning](https://semver.org).
 
+## [2.2.0] - 2026-10-31
+
+Steam's in-game overlay is now off. Opening it, including through a game's own invite button, can freeze the game: a known bug with Steam's overlay under Wine. Invite friends through Steam's Friends list instead.
+
+### Added
+
+- **Frame rate limit:** Off, 60 or 30 frames per second, with either translator. 30 keeps a MacBook Air cooler and steadier.
+- **Steam overlay:** a switch for Steam's in-game overlay (Shift+Tab), off by default. Vapor sets it in Steam's own settings each time it starts Steam, for every account that has signed in.
+
+### Changed
+
+- Vapor checks for a new version each time it opens, as soon as the Mac is online, instead of once a day. A red dot on its Dock icon and on **More** shows that an update is waiting, and **More → Update to Vapor…** installs it.
+- **Quit Steam** force-quits Steam after 10 seconds if it isn't responding, instead of after a minute. Steam that is responding still gets up to a minute to save its state.
+- `run-steam.sh` takes two more arguments, `FPS` and `OVERLAY`, after the existing four.
+
 ## [2.1.0] - 2026-10-30
 
 Open Vapor and click **Move**: it moves Vapor Steam out of `~/Games`, so only Vapor shows up when you search in Spotlight. Steam, your games, sign-ins and settings stay.
@@ -55,6 +70,7 @@ The first tagged release, as DXMetal.
 - The scripts use macOS's own tools, whatever else is in your PATH.
 - DXMetal Settings is signed with the hardened runtime, and contains no accounts or personal details.
 
+[2.2.0]: https://github.com/rhas1/Vapor/releases/tag/v2.2.0
 [2.1.0]: https://github.com/rhas1/Vapor/releases/tag/v2.1.0
 [2.0.0]: https://github.com/rhas1/Vapor/releases/tag/v2.0.0
 [1.0.0]: https://github.com/rhas1/Vapor/releases/tag/v1.0.0

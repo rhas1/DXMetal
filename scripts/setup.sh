@@ -119,10 +119,13 @@ if needs_update; then
   echo "Letting macOS check the new wrapper (this can take a couple of minutes)..."
   "$LAUNCHER" WSS-wineserverkill >/dev/null 2>&1 || true
   if [[ -z $old ]]; then
-    # Defaults: DXMT, no FPS overlay, no MetalFX. Wine starts in scaled resolution.
+    # Defaults: DXMT, no FPS overlay, no MetalFX, no frame-rate limit, and Steam's in-game overlay
+    # off. Wine starts in scaled resolution.
     set_dxmt 1
     set_hud 0
     set_metalfx 0
+    set_fps_limit 0
+    set_overlay 0
   fi
 fi
 
@@ -152,7 +155,7 @@ fi
 set_opt "Program Name and Path" string "/Program Files (x86)/Steam/steam.exe"
 set_opt "Program Flags" string ""
 set_opt WINEDEBUG string "-all"
-apply_metalfx
+apply_env
 
 # The app holds your Steam and game sign-ins, and the wrapper ships with parts of it world-writable:
 # keep other accounts on this Mac out of it. Also keep Wine and games out of Time Machine.
