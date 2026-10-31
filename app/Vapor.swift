@@ -2,6 +2,7 @@
 // settings, and starts or quits Steam. It runs the same scripts as the command line, bundled
 // inside the app, and checks GitHub for new versions of itself.
 import AppKit
+import Network
 import SwiftUI
 
 @main
@@ -16,8 +17,7 @@ struct VaporApp: App {
         .windowResizability(.contentSize)
         .commands {
             CommandGroup(after: .appInfo) {
-                Button("Check for Updates…") { model.checkForAppUpdate(manual: true) }
-                    .disabled(model.busy != nil)
+                UpdateMenuItem(model: model).disabled(model.busy != nil)
             }
         }
     }
@@ -37,20 +37,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-/// The four settings, in the order run-steam.sh takes them.
+/// The settings, in the order run-steam.sh takes them.
 struct Settings: Equatable {
     var retina = false, dxmt = false, hud = false, metalfx = false
+    var fpsLimit = 0        // frames per second: 0 for no limit, 30 or 60
+    var overlay = false     // Steam's in-game overlay
 
     init() {}
 
-    /// Reads the "0101"-style digits printed by the state query.
-    init?(_ digits: Substring) {
-        let values = digits.map { $0 == "1" }
-        guard values.count == 4 else { return nil }
-        (retina, dxmt, hud, metalfx) = (values[0], values[1], values[2], values[3])
+    /// Reads the "0 1 0 1 30 0"-style values printed by the state query.
+    init?(_ text: Substring) {
+        let values = text.split(separator: " ").compactMap { Int($0) }
+        guard values.count == 6 else { return nil }
+        (retina, dxmt, hud, metalfx) = (values[0] == 1, values[1] == 1, values[2] == 1, values[3] == 1)
+        (fpsLimit, overlay) = (values[4], values[5] == 1)
     }
 
-    var arguments: [String] { [retina, dxmt, hud, metalfx].map { $0 ? "1" : "0" } }
+    var arguments: [String] {
+        [retina, dxmt, hud, metalfx].map { $0 ? "1" : "0" } + [String(fpsLimit), overlay ? "1" : "0"]
+    }
 
     /// MetalFX only takes effect with DXMT at scaled resolution.
     var metalfxActive: Bool { metalfx && dxmt && !retina }
@@ -74,7 +79,9 @@ final class Model: ObservableObject {
     @Published var loaded = false
     @Published var installed = false
     @Published var moveReady = false       // it's where an earlier version put it, which Spotlight searches
-    @Published var updateReady = false     // newer wrapper and Wine versions are pinned
+    @Published var updateReady = false {   // newer wrapper and Wine versions are pinned
+        didSet { showUpdateDot() }
+    }
     @Published var wineRunning = false
     @Published var steamRunning = false
     @Published var game: String?           // a running game, e.g. "Game.exe on DXMT"
@@ -85,7 +92,9 @@ final class Model: ObservableObject {
     @Published var message = ""            // the last action's output
     @Published var log = ""                // setup's output while it runs
     @Published var confirmation: Confirmation?
-    @Published var appUpdate: String?      // a newer version of Vapor on GitHub
+    @Published var appUpdate: String? {    // a newer version of Vapor on GitHub
+        didSet { showUpdateDot() }
+    }
 
     let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
     private let scripts = Bundle.main.resourceURL!.appendingPathComponent("scripts").path
@@ -93,19 +102,23 @@ final class Model: ObservableObject {
     private var logLines: [String] = []
     private var logLine = ""
     private var timer: Timer?
+    private let network = NWPathMonitor()
+    private var online = false
+    private var checkedForAppUpdate = false
+    private var dotShown = false
 
     var pendingChanges: Bool { chosen != saved }
     var gameName: String? { game?.components(separatedBy: " on ").first }
 
-    // Prints one line per fact: "installed", "move", "update", "settings 0101", "wine", "steam",
-    // "game Name.exe on DXMT".
+    // Prints one line per fact: "installed", "move", "update", "settings 0 1 0 1 30 0", "wine",
+    // "steam", "game Name.exe on DXMT".
     private static let stateQuery = """
         source "$1/config.sh"
         if [[ -x $LAUNCHER && -f $STEAM_DIR/steam.exe ]]; then
           echo installed
           [[ $APP == $INSTALL_PATH ]] || echo move
           needs_update && echo update
-          echo "settings $(get_retina)$(get_dxmt)$(get_hud)$(get_metalfx)"
+          echo "settings $(get_retina) $(get_dxmt) $(get_hud) $(get_metalfx) $(get_fps_limit) $(get_overlay)"
         fi
         pgrep -x wineserver >/dev/null && echo wine
         pgrep -f 'steam\\.exe' >/dev/null && echo steam
@@ -131,9 +144,16 @@ final class Model: ObservableObject {
         timer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
             self?.checkRunning()
         }
-        // Look for a new version of Vapor at most once a day.
-        let last = UserDefaults.standard.object(forKey: "lastUpdateCheck") as? Date ?? .distantPast
-        if Date().timeIntervalSince(last) > 86_400 { checkForAppUpdate(manual: false) }
+        // Look for a new version of Vapor each time it opens, once the Mac is online.
+        network.pathUpdateHandler = { [weak self] path in
+            guard let self else { return }
+            online = path.status == .satisfied
+            if online && !checkedForAppUpdate {
+                checkedForAppUpdate = true
+                checkForAppUpdate(manual: false)
+            }
+        }
+        network.start(queue: .main)
     }
 
     func refresh() {
@@ -302,8 +322,11 @@ final class Model: ObservableObject {
 
     /// Asks GitHub for the latest version. `manual` reports the result even when there's nothing new.
     func checkForAppUpdate(manual: Bool) {
+        guard online else {
+            if manual { message = "Couldn't check for updates: this Mac isn't connected to the internet." }
+            return
+        }
         zsh(["\(scripts)/update-app.sh", "check"]) { [self] status, output in
-            UserDefaults.standard.set(Date(), forKey: "lastUpdateCheck")
             guard status == 0, !output.isEmpty else {
                 if manual { message = "Couldn't check for updates: \(output)" }
                 return
@@ -315,6 +338,36 @@ final class Model: ObservableObject {
                 appUpdate = nil
                 if manual { message = "Vapor \(version) is the latest version." }
             }
+        }
+    }
+
+    /// Puts a red dot on Vapor's Dock icon while an update is waiting.
+    private func showUpdateDot() {
+        let show = appUpdate != nil || updateReady
+        guard show != dotShown else { return }
+        dotShown = show
+        let dock = NSApp.dockTile
+        if show {
+            let view = NSImageView(frame: NSRect(origin: .zero, size: dock.size))
+            view.image = Self.iconWithDot()
+            view.imageScaling = .scaleProportionallyUpOrDown
+            dock.contentView = view
+        } else {
+            dock.contentView = nil
+        }
+        dock.display()
+    }
+
+    /// Vapor's icon with a red dot on the top right corner of its tile, which fills the middle 80%.
+    private static func iconWithDot() -> NSImage {
+        let icon = NSApp.applicationIconImage ?? NSImage()
+        return NSImage(size: NSSize(width: 256, height: 256), flipped: false) { rect in
+            icon.draw(in: rect)
+            let size = rect.width * 0.22
+            NSColor.systemRed.setFill()
+            NSBezierPath(ovalIn: NSRect(x: rect.width * 0.85 - size / 2, y: rect.height * 0.85 - size / 2,
+                                        width: size, height: size)).fill()
+            return true
         }
     }
 
@@ -373,6 +426,19 @@ final class Model: ObservableObject {
             busy = nil
             message = output
             if status == 0, let next { next() } else { refresh() }
+        }
+    }
+}
+
+/// "Check for Updates…", or "Update to Vapor 2.2.0…" once a newer version is known.
+struct UpdateMenuItem: View {
+    @ObservedObject var model: Model
+
+    var body: some View {
+        if let latest = model.appUpdate {
+            Button("Update to Vapor \(latest)…") { model.askAppUpdate(latest) }
+        } else {
+            Button("Check for Updates…") { model.checkForAppUpdate(manual: true) }
         }
     }
 }
@@ -525,6 +591,19 @@ struct ContentView: View {
             row("MetalFX upscaling", metalfxNote, warning: model.chosen.metalfx && !model.chosen.metalfxActive) {
                 Toggle("MetalFX upscaling", isOn: $model.chosen.metalfx).toggleStyle(.switch).labelsHidden()
             }
+            row("Frame rate limit", "Caps games' frame rate. 30 keeps a MacBook Air cooler and steadier.") {
+                Picker("Frame rate limit", selection: $model.chosen.fpsLimit) {
+                    Text("Off").tag(0)
+                    Text("60").tag(60)
+                    Text("30").tag(30)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 170)
+            }
+            row("Steam overlay", "Steam's Shift+Tab overlay in games. Opening it can freeze a game, so invite friends from Steam's window.") {
+                Toggle("Steam overlay", isOn: $model.chosen.overlay).toggleStyle(.switch).labelsHidden()
+            }
             if model.wineRunning {
                 Text("Settings are locked while Steam is running. Quit Steam to change them.")
                     .font(.callout)
@@ -586,7 +665,7 @@ struct ContentView: View {
     private var footer: some View {
         HStack {
             Menu("More") {
-                Button("Check for Updates…") { model.checkForAppUpdate(manual: true) }
+                UpdateMenuItem(model: model)
                 Button("Clear Caches…") { model.askClearCaches() }
                     .disabled(!model.installed || model.wineRunning)
                 Button("Copy Diagnostics") { model.copyDiagnostics() }
@@ -599,6 +678,13 @@ struct ContentView: View {
             .menuStyle(.button)
             .buttonStyle(.borderless)
             .fixedSize()
+            .overlay(alignment: .topTrailing) {
+                // Points to "Update to Vapor…" in the menu.
+                if model.appUpdate != nil {
+                    Circle().fill(Color.red).frame(width: 8, height: 8).offset(x: 6, y: -3)
+                }
+            }
+            .help(model.appUpdate.map { "Vapor \($0) is available" } ?? "")
             Spacer()
             if !model.loaded {
                 EmptyView()
