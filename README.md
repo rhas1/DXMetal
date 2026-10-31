@@ -151,7 +151,8 @@ Each game is different, so check [Tested games](#tested-games) or just try it. I
 
 | Game | Translator | Result | Notes |
 |---|---|---|---|
-| It Takes Two | D3DMetal and DXMT | Works | Tested with the free Friend's Pass on a MacBook Air M3 (16 GB) running macOS 27. **Don't use the game's Invite friend button:** it opens the Steam overlay, which freezes the game, a known bug with Wine (see [Troubleshooting](#troubleshooting)). Vapor keeps the overlay off. Create the online session in the game, then invite your friend through Steam's Friends list. A harmless Steam networking warning (`steamerrorreporter`) appears once at launch. |
+| It Takes Two | D3DMetal and DXMT | Works | Tested with the free Friend's Pass on a MacBook Air M3 (16 GB) running macOS 27. **Don't use the game's Invite friend button:** it opens the Steam overlay, which freezes the game, a known bug with Wine (see [Troubleshooting](#troubleshooting)). Vapor keeps the overlay off. Create the online session in the game, then invite your friend through Steam's Friends list. A PS5 controller works through Steam Input. A harmless Steam networking warning (`steamerrorreporter`) appears once at launch. |
+| Tomb Raider (2013) | DXMT | Works | A 32-bit game, so it needs DXMT: D3DMetal only runs 64-bit games. The built-in benchmark held about 65 fps on the game's Normal settings (FXAA, TressFX hair off) at 1470×956 with MetalFX upscaling, on a MacBook Air M3 (16 GB) running macOS 27. The same harmless Steam networking warning appears at launch. |
 
 Tested another game? Add a row with the translator you used, and anything worth knowing.
 
